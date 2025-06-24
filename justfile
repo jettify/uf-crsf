@@ -4,3 +4,9 @@ test:
 build:
   cargo build
   cargo check
+
+fmt:
+  cargo fmt --all
+
+lint:
+  cargo clippy

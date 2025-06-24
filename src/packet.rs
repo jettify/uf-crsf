@@ -1,183 +1,34 @@
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct RawCrsfPacket<'a> {
-    pub bytes: &'a [u8],
-}
-
-impl RawCrsfPacket<'_> {
-    pub fn packet_type(&self) -> PacketType {
-        PacketType::from_u8(self.bytes[2])
-    }
-
-    pub fn payload(&self) -> &[u8] {
-        &self.bytes[3..self.bytes.len() - 1]
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Packet {
-    LinkStatistics(LinkStatistics),
-    RCChannels(RcChannelsPacked),
-    NotImlemented(PacketType, usize),
-}
-
-impl Packet {
-    pub fn parse(raw_packet: &RawCrsfPacket<'_>) -> Self {
-        match raw_packet.packet_type() {
-            PacketType::LinkStatistics
-                if raw_packet.payload().len() == LinkStatistics::SERIALIZED_LEN =>
-            {
-                let data = raw_packet.payload().try_into().unwrap();
-                Self::LinkStatistics(LinkStatistics::from_bytes(data))
-            }
-            PacketType::RcChannelsPacked
-                if raw_packet.payload().len() == RcChannelsPacked::SERIALIZED_LEN =>
-            {
-                let data = raw_packet.payload().try_into().unwrap();
-                Self::RCChannels(RcChannelsPacked::from_bytes(data))
-            }
-            _ => Packet::NotImlemented(raw_packet.packet_type(), raw_packet.payload().len()),
-        }
-    }
-}
-
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[repr(u8)]
-pub enum PacketType {
-    Gps = 0x02,
-    Vario = 0x07,
-    BatterySensor = 0x08,
-    BaroAltitude = 0x09,
-    Heartbeat = 0x0B,
-    LinkStatistics = 0x14,
-    RcChannelsPacked = 0x16,
-    SubsetRcChannelsPacked = 0x17,
-    LinkRxId = 0x1C,
-    LinkTxId = 0x1D,
-    Attitude = 0x1E,
-    FlightMode = 0x21,
-    DevicePing = 0x28,
-    DeviceInfo = 0x29,
-    ParameterSettingsEntry = 0x2B,
-    ParameterRead = 0x2C,
-    ParameterWrite = 0x2D,
-    ElrsStatus = 0x2E,
-    Command = 0x32,
-    RadioId = 0x3A,
-    KissRequest = 0x78,
-    KissResponse = 0x79,
-    MspRequest = 0x7A,
-    MspResponse = 0x7B,
-    MspWrite = 0x7C,
-    ArdupilotResponse = 0x80,
-    Unknown,
-}
-
-impl PacketType {
-    pub fn from_u8(value: u8) -> PacketType {
-        match value {
-            0x02 => Self::Gps,
-            0x07 => Self::Vario,
-            0x08 => Self::BatterySensor,
-            0x09 => Self::BaroAltitude,
-            0x0B => Self::Heartbeat,
-            0x14 => Self::LinkStatistics,
-            0x16 => Self::RcChannelsPacked,
-            0x17 => Self::SubsetRcChannelsPacked,
-            0x1C => Self::LinkRxId,
-            0x1D => Self::LinkTxId,
-            0x1E => Self::Attitude,
-            0x21 => Self::FlightMode,
-            0x28 => Self::DevicePing,
-            0x29 => Self::DeviceInfo,
-            0x2B => Self::ParameterSettingsEntry,
-            0x2C => Self::ParameterRead,
-            0x2D => Self::ParameterWrite,
-            0x2E => Self::ElrsStatus,
-            0x32 => Self::Command,
-            0x3A => Self::RadioId,
-            0x78 => Self::KissRequest,
-            0x79 => Self::KissResponse,
-            0x7A => Self::MspRequest,
-            0x7B => Self::MspResponse,
-            0x7C => Self::MspWrite,
-            0x80 => Self::ArdupilotResponse,
-            _ => Self::Unknown,
-        }
-    }
-    pub fn is_extended(self) -> bool {
-        self as u8 >= 0x28
-    }
-}
-
-/// Represents all CRSF packet addresses
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[repr(u8)]
-pub enum PacketAddress {
-    Broadcast = 0x00,
-    Usb = 0x10,
-    Bluetooth = 0x12,
-    TbsCorePnpPro = 0x80,
-    Reserved1 = 0x8A,
-    CurrentSensor = 0xC0,
-    Gps = 0xC2,
-    TbsBlackbox = 0xC4,
-    FlightController = 0xC8,
-    Reserved2 = 0xCA,
-    RaceTag = 0xCC,
-    Handset = 0xEA,
-    Receiver = 0xEC,
-    Transmitter = 0xEE,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[allow(missing_docs)]
-pub struct LinkStatistics {
-    pub uplink_rssi_1: u8,
-    pub uplink_rssi_2: u8,
-    pub uplink_link_quality: u8,
-    pub uplink_snr: i8,
-    pub active_antenna: u8,
-    pub rf_mode: u8,
-    pub uplink_tx_power: u8,
-    pub downlink_rssi: u8,
-    pub downlink_link_quality: u8,
-    pub downlink_snr: i8,
+pub struct Gps {
+    pub latitude: i32,    // degree / 10`000`000
+    pub longitude: i32,   // degree / 10`000`000
+    pub groundspeed: u16, // km/h / 100
+    pub heading: u16,     // degree / 100
+    pub altitude: u16,    // meter - 1000m offset
+    pub satellites: u8,   // # of sats in view
 }
 
-impl LinkStatistics {
-    pub const SERIALIZED_LEN: usize = 10;
+impl Gps {
+    pub const SERIALIZED_LEN: usize = 16;
 
     pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
-        buffer[0] = self.uplink_rssi_1;
-        buffer[1] = self.uplink_rssi_2;
-        buffer[2] = self.uplink_link_quality;
-        buffer[3] = self.uplink_snr as u8;
-        buffer[4] = self.active_antenna;
-        buffer[5] = self.rf_mode;
-        buffer[6] = self.uplink_tx_power;
-        buffer[7] = self.downlink_rssi;
-        buffer[8] = self.downlink_link_quality;
-        buffer[9] = self.downlink_snr as u8;
+        buffer[..4].copy_from_slice(&self.latitude.to_be_bytes());
+        buffer[4..8].copy_from_slice(&self.longitude.to_be_bytes());
+        buffer[8..10].copy_from_slice(&self.groundspeed.to_be_bytes());
+        buffer[10..12].copy_from_slice(&self.heading.to_be_bytes());
+        buffer[12..14].copy_from_slice(&self.altitude.to_be_bytes());
+        buffer[15] = self.satellites;
     }
 
     pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
         Self {
-            uplink_rssi_1: data[0],
-            uplink_rssi_2: data[1],
-            uplink_link_quality: data[2],
-            uplink_snr: data[3] as i8,
-            active_antenna: data[4],
-            rf_mode: data[5],
-            uplink_tx_power: data[6],
-            downlink_rssi: data[7],
-            downlink_link_quality: data[8],
-            downlink_snr: data[9] as i8,
+            latitude: i32::from_be_bytes(data[0..4].try_into().unwrap()),
+            longitude: i32::from_be_bytes(data[4..8].try_into().unwrap()),
+            groundspeed: u16::from_be_bytes(data[8..10].try_into().unwrap()),
+            heading: u16::from_be_bytes(data[10..12].try_into().unwrap()),
+            altitude: u16::from_be_bytes(data[12..14].try_into().unwrap()),
+            satellites: data[15],
         }
     }
 }
@@ -241,6 +92,26 @@ impl RcChannelsPacked {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct VariometerSensor {
+    pub v_speed: i16, // Vertical speed cm/s
+}
+
+impl VariometerSensor {
+    pub const SERIALIZED_LEN: usize = 2;
+
+    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+        buffer[..2].copy_from_slice(&self.v_speed.to_be_bytes());
+    }
+
+    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
+        Self {
+            v_speed: i16::from_be_bytes([data[0], data[1]]),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
@@ -256,7 +127,6 @@ mod tests {
         ls.to_bytes(&mut buffer);
         assert_eq!(ls.uplink_rssi_1, 16);
         assert_eq!(&buffer, data);
-        std::dbg!(ls);
     }
 
     #[test]
@@ -270,6 +140,34 @@ mod tests {
         let mut buffer: [u8; 22] = [0; 22];
         rc.to_bytes(&mut buffer);
         assert_eq!(&buffer, data);
-        std::dbg!(rc);
+    }
+    #[test]
+    fn test_gps() {
+        let raw_bytes: [u8; 16] = [0; 16];
+        let data = &raw_bytes[0..16].try_into().unwrap();
+        let gps = Gps::from_bytes(data);
+
+        assert_eq!(gps.altitude, 0);
+        assert_eq!(gps.longitude, 0);
+        assert_eq!(gps.groundspeed, 0);
+        assert_eq!(gps.heading, 0);
+        assert_eq!(gps.altitude, 0);
+        assert_eq!(gps.satellites, 0);
+
+        let mut buffer: [u8; 16] = [0; 16];
+        gps.to_bytes(&mut buffer);
+        assert_eq!(&buffer, data);
+    }
+    #[test]
+    fn test_vario() {
+        let raw_bytes: [u8; 2] = [0; 2];
+        let data = &raw_bytes[0..2].try_into().unwrap();
+
+        let vario = VariometerSensor::from_bytes(data);
+        assert_eq!(vario.v_speed, 0);
+
+        let mut buffer: [u8; 2] = [0; 2];
+        vario.to_bytes(&mut buffer);
+        assert_eq!(&buffer, data);
     }
 }
