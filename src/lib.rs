@@ -1,8 +1,10 @@
 #![no_std]
 // use num_enum::TryFromPrimitive;
 mod packets;
+use num_enum::TryFromPrimitive;
 use packets::CrsfParsingError;
 use packets::Packet;
+use packets::PacketAddress;
 use packets::RawCrsfPacket;
 extern crate std;
 
@@ -17,7 +19,7 @@ pub mod constants {
 #[derive(Debug, Default, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub enum State {
     #[default]
-    AwaitingHead,
+    AwaitingSync,
     AwaitingLenth,
     Reading(usize),
 }
@@ -31,6 +33,7 @@ pub struct CrsfParser {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CrsfError {
+    InvalidSync,
     InvalidPacketLength,
     InvalidCrc { calculated_crc: u8, packet_crc: u8 },
     NeedMoreData(usize),
@@ -42,18 +45,23 @@ impl CrsfParser {
     pub fn new() -> Self {
         Self {
             buffer: [0; constants::CRSF_MAX_PACKET_SIZE],
-            state: State::AwaitingHead,
+            state: State::AwaitingSync,
             position: 0,
         }
     }
 
     pub fn push_byte_raw(&mut self, byte: u8) -> Result<RawCrsfPacket<'_>, CrsfError> {
         match self.state {
-            State::AwaitingHead => {
-                self.position = 0;
-                self.buffer[self.position] = byte;
-                self.state = State::AwaitingLenth;
-                Err(CrsfError::NeedMoreData(1))
+            State::AwaitingSync => {
+                if PacketAddress::try_from_primitive(byte).is_ok() {
+                    self.position = 0;
+                    self.buffer[self.position] = byte;
+                    self.state = State::AwaitingLenth;
+                    Err(CrsfError::NeedMoreData(1))
+                } else {
+                    self.state = State::AwaitingSync;
+                    Err(CrsfError::InvalidSync)
+                }
             }
             State::AwaitingLenth => {
                 let n = byte as usize + 2;
@@ -113,7 +121,7 @@ impl CrsfParser {
 
     pub fn reset(&mut self) {
         self.position = 0;
-        self.state = State::AwaitingHead
+        self.state = State::AwaitingSync
     }
 }
 
@@ -201,8 +209,8 @@ mod tests {
         let expected = [
             992, 992, 352, 992, 352, 352, 352, 352, 352, 352, 992, 992, 0, 0, 0, 0,
         ];
-
         assert_eq!(results.len(), 2);
+
         assert!(results[0].is_ok());
         assert!(results[1].is_ok());
         assert_eq!(
