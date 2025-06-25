@@ -1,9 +1,11 @@
 mod gps;
+mod gps_time;
 mod link_statistics;
 mod rc_channels_packed;
 mod vario;
 
 pub use gps::Gps;
+pub use gps_time::GpsTime;
 pub use link_statistics::LinkStatistics;
 pub use rc_channels_packed::RcChannelsPacked;
 pub use vario::VariometerSensor;
@@ -57,6 +59,7 @@ pub enum Packet {
     LinkStatistics(LinkStatistics),
     RCChannels(RcChannelsPacked),
     Gps(Gps),
+    GpsTime(GpsTime),
     Vario(VariometerSensor),
     NotImlemented(PacketType, usize),
 }
@@ -82,6 +85,10 @@ impl Packet {
                 let data = raw_packet.payload().try_into().unwrap();
                 Ok(Self::Gps(Gps::from_bytes(data)))
             }
+            PacketType::GpsTime if raw_packet.payload().len() == Gps::SERIALIZED_LEN => {
+                let data = raw_packet.payload().try_into().unwrap();
+                Ok(Self::GpsTime(GpsTime::from_bytes(data)))
+            }
             _ => Ok(Packet::NotImlemented(
                 packet_type,
                 raw_packet.payload().len(),
@@ -96,6 +103,7 @@ impl Packet {
 #[repr(u8)]
 pub enum PacketType {
     Gps = 0x02,
+    GpsTime = 0x03,
     Vario = 0x07,
     BatterySensor = 0x08,
     BaroAltitude = 0x09,
