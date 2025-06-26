@@ -1,3 +1,12 @@
+//! GPS Packet
+//!
+//!    int32_t latitude;       // degree / 10`000`000
+//!    int32_t longitude;      // degree / 10`000`000
+//!    uint16_t groundspeed;   // km/h / 100
+//!    uint16_t heading;       // degree / 100
+//!    uint16_t altitude;      // meter - 1000m offset
+//!    uint8_t satellites;     // # of sats in view
+//!
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Gps {

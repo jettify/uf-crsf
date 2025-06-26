@@ -1,10 +1,15 @@
+mod baro_altitude;
+mod battery;
 mod gps;
+mod gps_extended;
 mod gps_time;
 mod link_statistics;
 mod rc_channels_packed;
 mod vario;
 
+pub use battery::Battery;
 pub use gps::Gps;
+pub use gps_extended::GpsExtended;
 pub use gps_time::GpsTime;
 pub use link_statistics::LinkStatistics;
 pub use rc_channels_packed::RcChannelsPacked;
@@ -60,7 +65,9 @@ pub enum Packet {
     RCChannels(RcChannelsPacked),
     Gps(Gps),
     GpsTime(GpsTime),
+    GpsExtended(GpsExtended),
     Vario(VariometerSensor),
+    Battery(Battery),
     NotImlemented(PacketType, usize),
 }
 
@@ -85,10 +92,22 @@ impl Packet {
                 let data = raw_packet.payload().try_into().unwrap();
                 Ok(Self::Gps(Gps::from_bytes(data)))
             }
-            PacketType::GpsTime if raw_packet.payload().len() == Gps::SERIALIZED_LEN => {
+            PacketType::GpsTime if raw_packet.payload().len() == GpsTime::SERIALIZED_LEN => {
                 let data = raw_packet.payload().try_into().unwrap();
                 Ok(Self::GpsTime(GpsTime::from_bytes(data)))
             }
+            PacketType::GpsExtended
+                if raw_packet.payload().len() == GpsExtended::SERIALIZED_LEN =>
+            {
+                let data = raw_packet.payload().try_into().unwrap();
+                Ok(Self::GpsExtended(GpsExtended::from_bytes(data)))
+            }
+
+            PacketType::BatterySensor if raw_packet.payload().len() == Battery::SERIALIZED_LEN => {
+                let data = raw_packet.payload().try_into().unwrap();
+                Ok(Self::Battery(Battery::from_bytes(data)))
+            }
+
             _ => Ok(Packet::NotImlemented(
                 packet_type,
                 raw_packet.payload().len(),
@@ -104,6 +123,7 @@ impl Packet {
 pub enum PacketType {
     Gps = 0x02,
     GpsTime = 0x03,
+    GpsExtended = 0x06,
     Vario = 0x07,
     BatterySensor = 0x08,
     BaroAltitude = 0x09,
