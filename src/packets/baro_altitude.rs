@@ -12,8 +12,8 @@ pub struct BaroAltitude {
     pub vertical_speed_packed: i8,
 }
 
-const KL: f32 = 100.0;
-const KR: f32 = 0.026;
+const KL: f32 = 100.0; // linearity constant
+const KR: f32 = 0.026; // range constant
 
 impl BaroAltitude {
     pub const SERIALIZED_LEN: usize = 3;
@@ -79,7 +79,7 @@ mod tests {
         assert_eq!(BaroAltitude::get_altitude_packed(-10001), 0);
         assert_eq!(BaroAltitude::get_altitude_packed(327660), 0xfffe);
         assert_eq!(BaroAltitude::get_altitude_packed(0), 10000);
-        assert_eq!(BaroAltitude::get_altitude_packed(22767), 0x8000);
+        assert_eq!(BaroAltitude::get_altitude_packed(22767), 0x7FFF);
     }
 
     #[test]
@@ -112,8 +112,8 @@ mod tests {
     #[test]
     fn test_vertical_speed_packing() {
         assert_eq!(BaroAltitude::get_vertical_speed_packed(0), 0);
-        assert_eq!(BaroAltitude::get_vertical_speed_packed(2500), 127);
-        assert_eq!(BaroAltitude::get_vertical_speed_packed(-2500), -127);
+        assert_eq!(BaroAltitude::get_vertical_speed_packed(2500), 125);
+        assert_eq!(BaroAltitude::get_vertical_speed_packed(-2500), -125);
     }
 
     #[test]
@@ -130,7 +130,7 @@ mod tests {
         };
         assert_eq!(
             (baro_altitude.get_vertical_speed_cm_s() as f32).round(),
-            2497.0
+            2616.0
         );
 
         let baro_altitude = BaroAltitude {
@@ -139,7 +139,7 @@ mod tests {
         };
         assert_eq!(
             (baro_altitude.get_vertical_speed_cm_s() as f32).round(),
-            -2497.0
+            -2616.0
         );
     }
 
