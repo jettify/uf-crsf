@@ -4,9 +4,11 @@ mod battery;
 mod gps;
 mod gps_extended;
 mod gps_time;
+mod heartbeat;
 mod link_statistics;
 mod rc_channels_packed;
 mod vario;
+mod vtx_telemetry;
 
 pub use airspeed::AirSpeed;
 pub use battery::Battery;
