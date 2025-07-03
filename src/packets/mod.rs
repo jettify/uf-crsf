@@ -6,6 +6,7 @@ mod gps_extended;
 mod gps_time;
 mod heartbeat;
 mod link_statistics;
+mod link_statistics_rx;
 mod rc_channels_packed;
 mod vario;
 mod vtx_telemetry;
