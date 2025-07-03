@@ -7,6 +7,7 @@ mod gps_time;
 mod heartbeat;
 mod link_statistics;
 mod link_statistics_rx;
+mod link_statistics_tx;
 mod rc_channels_packed;
 mod vario;
 mod vtx_telemetry;
@@ -17,6 +18,8 @@ pub use gps::Gps;
 pub use gps_extended::GpsExtended;
 pub use gps_time::GpsTime;
 pub use link_statistics::LinkStatistics;
+pub use link_statistics_rx::LinkStatisticsRx;
+pub use link_statistics_tx::LinkStatisticsTx;
 pub use rc_channels_packed::RcChannelsPacked;
 pub use vario::VariometerSensor;
 
