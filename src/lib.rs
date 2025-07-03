@@ -120,6 +120,17 @@ impl CrsfParser {
         }
     }
 
+    pub fn iter_packets_raw<'a, 'b>(
+        &'a mut self,
+        buffer: &'b [u8],
+    ) -> RawPacketIterator<'a, 'b> {
+        RawPacketIterator {
+            parser: self,
+            buffer,
+            pos: 0,
+        }
+    }
+
     pub fn push_byte(&mut self, byte: u8) -> Result<Packet, CrsfError> {
         let raw_packet = self.push_byte_raw(byte)?;
         Packet::parse(&raw_packet).map_err(CrsfError::ParsingError)
@@ -128,6 +139,35 @@ impl CrsfParser {
     pub fn reset(&mut self) {
         self.position = 0;
         self.state = State::AwaitingSync
+    }
+}
+
+pub struct RawPacketIterator<'a, 'b> {
+    parser: &'a mut CrsfParser,
+    buffer: &'b [u8],
+    pos: usize,
+}
+
+impl<'a, 'b> Iterator for RawPacketIterator<'a, 'b> {
+    type Item = Result<&'b [u8], CrsfError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.pos < self.buffer.len() {
+            let byte = self.buffer[self.pos];
+            let result = self.parser.push_byte_raw(byte);
+            self.pos += 1;
+
+            match result {
+                Ok(raw_packet) => {
+                    let packet_len = raw_packet.len();
+                    let start_index = self.pos - packet_len;
+                    return Some(Ok(&self.buffer[start_index..self.pos]));
+                }
+                Err(CrsfError::NeedMoreData(_)) => (),
+                Err(err) => return Some(Err(err)),
+            }
+        }
+        None
     }
 }
 
@@ -223,5 +263,23 @@ mod tests {
             Packet::RCChannels(RcChannelsPacked(expected)),
             results[1].clone().ok().unwrap()
         );
+    }
+
+    #[test]
+    fn test_raw_packet_iterator() {
+        let raw_bytes: [u8; 40] = [
+            0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252, 0xC8, 24, 0x16, 0xE0, 0x03,
+            0x1F, 0x58, 0xC0, 0x07, 0x16, 0xB0, 0x80, 0x05, 0x2C, 0x60, 0x01, 0x0B, 0xF8, 0xC0,
+            0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 103,
+        ];
+        let mut parser = CrsfParser::new();
+        let results: std::vec::Vec<Result<&[u8], CrsfError>> =
+            parser.iter_packets_raw(&raw_bytes).collect();
+
+        assert_eq!(results.len(), 2);
+        assert!(results[0].is_ok());
+        assert_eq!(results[0].unwrap(), &raw_bytes[0..14]);
+        assert!(results[1].is_ok());
+        assert_eq!(results[1].unwrap(), &raw_bytes[14..40]);
     }
 }
