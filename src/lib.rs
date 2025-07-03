@@ -22,6 +22,7 @@ pub enum State {
     AwaitingSync,
     AwaitingLenth,
     Reading(usize),
+    AwaitingCrc,
 }
 
 #[derive(Debug)]
@@ -73,10 +74,20 @@ impl CrsfParser {
                 }
                 self.position = 1;
                 self.buffer[self.position] = byte;
-                self.state = State::Reading(n);
+                self.state = State::Reading(n - 1);
                 Err(CrsfError::NeedMoreData(n))
             }
-            State::Reading(n) if self.position == n - 2 => {
+            State::Reading(n) => {
+                self.position += 1;
+                self.buffer[self.position] = byte;
+                if self.position == n - 1 {
+                    self.state = State::AwaitingCrc;
+                    Err(CrsfError::NeedMoreData(1))
+                } else {
+                    Err(CrsfError::NeedMoreData(n - self.position))
+                }
+            }
+            State::AwaitingCrc => {
                 self.position += 1;
                 self.buffer[self.position] = byte;
 
@@ -98,11 +109,6 @@ impl CrsfParser {
                 self.reset();
                 let bytes = &self.buffer[start..end];
                 Ok(RawCrsfPacket::new(bytes).unwrap())
-            }
-            State::Reading(n) => {
-                self.position += 1;
-                self.buffer[self.position] = byte;
-                Err(CrsfError::NeedMoreData(n - self.position))
             }
         }
     }
