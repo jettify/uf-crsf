@@ -10,3 +10,6 @@ fmt:
 
 lint:
   cargo clippy
+
+ex:
+  cargo run --example=local_std
