@@ -37,9 +37,15 @@ pub enum CrsfError {
     InvalidSync,
     InvalidPacketLength,
     InvalidCrc { calculated_crc: u8, packet_crc: u8 },
-    NeedMoreData(usize),
     UnexpectedPacketType(u8),
     ParsingError(CrsfParsingError),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ParseResult<T> {
+    Complete(T),
+    Incomplete,
+    Error(CrsfError),
 }
 
 impl CrsfParser {
@@ -51,17 +57,17 @@ impl CrsfParser {
         }
     }
 
-    pub fn push_byte_raw(&mut self, byte: u8) -> Result<RawCrsfPacket<'_>, CrsfError> {
+    pub fn push_byte_raw(&mut self, byte: u8) -> ParseResult<RawCrsfPacket<'_>> {
         match self.state {
             State::AwaitingSync => {
                 if PacketAddress::try_from_primitive(byte).is_ok() {
                     self.position = 0;
                     self.buffer[self.position] = byte;
                     self.state = State::AwaitingLenth;
-                    Err(CrsfError::NeedMoreData(1))
+                    ParseResult::Incomplete
                 } else {
                     self.state = State::AwaitingSync;
-                    Err(CrsfError::InvalidSync)
+                    ParseResult::Error(CrsfError::InvalidSync)
                 }
             }
             State::AwaitingLenth => {
@@ -70,22 +76,20 @@ impl CrsfParser {
                 if !(constants::CRSF_MIN_PACKET_SIZE..constants::CRSF_MAX_PACKET_SIZE).contains(&n)
                 {
                     self.reset();
-                    return Err(CrsfError::InvalidPacketLength);
+                    return ParseResult::Error(CrsfError::InvalidPacketLength);
                 }
                 self.position = 1;
                 self.buffer[self.position] = byte;
                 self.state = State::Reading(n - 1);
-                Err(CrsfError::NeedMoreData(n))
+                ParseResult::Incomplete
             }
             State::Reading(n) => {
                 self.position += 1;
                 self.buffer[self.position] = byte;
                 if self.position == n - 1 {
                     self.state = State::AwaitingCrc;
-                    Err(CrsfError::NeedMoreData(1))
-                } else {
-                    Err(CrsfError::NeedMoreData(n - self.position))
                 }
+                ParseResult::Incomplete
             }
             State::AwaitingCrc => {
                 self.position += 1;
@@ -99,7 +103,7 @@ impl CrsfParser {
 
                 if calculated_crc != packet_crc {
                     self.reset();
-                    return Err(CrsfError::InvalidCrc {
+                    return ParseResult::Error(CrsfError::InvalidCrc {
                         calculated_crc,
                         packet_crc,
                     });
@@ -108,7 +112,7 @@ impl CrsfParser {
                 let end = self.position + 1;
                 self.reset();
                 let bytes = &self.buffer[start..end];
-                Ok(RawCrsfPacket::new(bytes).unwrap())
+                ParseResult::Complete(RawCrsfPacket::new(bytes).unwrap())
             }
         }
     }
@@ -120,10 +124,7 @@ impl CrsfParser {
         }
     }
 
-    pub fn iter_packets_raw<'a, 'b>(
-        &'a mut self,
-        buffer: &'b [u8],
-    ) -> RawPacketIterator<'a, 'b> {
+    pub fn iter_packets_raw<'a, 'b>(&'a mut self, buffer: &'b [u8]) -> RawPacketIterator<'a, 'b> {
         RawPacketIterator {
             parser: self,
             buffer,
@@ -131,9 +132,17 @@ impl CrsfParser {
         }
     }
 
-    pub fn push_byte(&mut self, byte: u8) -> Result<Packet, CrsfError> {
-        let raw_packet = self.push_byte_raw(byte)?;
-        Packet::parse(&raw_packet).map_err(CrsfError::ParsingError)
+    pub fn push_byte(&mut self, byte: u8) -> ParseResult<Packet> {
+        match self.push_byte_raw(byte) {
+            ParseResult::Complete(raw_packet) => {
+                match Packet::parse(&raw_packet) {
+                    Ok(packet) => ParseResult::Complete(packet),
+                    Err(e) => ParseResult::Error(CrsfError::ParsingError(e)),
+                }
+            }
+            ParseResult::Incomplete => ParseResult::Incomplete,
+            ParseResult::Error(e) => ParseResult::Error(e),
+        }
     }
 
     pub fn reset(&mut self) {
@@ -158,13 +167,13 @@ impl<'a, 'b> Iterator for RawPacketIterator<'a, 'b> {
             self.pos += 1;
 
             match result {
-                Ok(raw_packet) => {
+                ParseResult::Complete(raw_packet) => {
                     let packet_len = raw_packet.len();
                     let start_index = self.pos - packet_len;
                     return Some(Ok(&self.buffer[start_index..self.pos]));
                 }
-                Err(CrsfError::NeedMoreData(_)) => (),
-                Err(err) => return Some(Err(err)),
+                ParseResult::Incomplete => (),
+                ParseResult::Error(err) => return Some(Err(err)),
             }
         }
         None
@@ -189,9 +198,9 @@ impl Iterator for PacketIterator<'_, '_> {
             self.buffer = &self.buffer[1..];
 
             match self.parser.push_byte(byte) {
-                Ok(result) => return Some(Ok(result)),
-                Err(CrsfError::NeedMoreData(_)) => (),
-                Err(err) => return Some(Err(err)),
+                ParseResult::Complete(packet) => return Some(Ok(packet)),
+                ParseResult::Incomplete => (),
+                ParseResult::Error(err) => return Some(Err(err)),
             }
         }
         None
@@ -219,12 +228,15 @@ mod tests {
         let mut parser = CrsfParser::new();
 
         for b in &raw_bytes[0..raw_bytes.len() - 1] {
-            assert!(parser.push_byte_raw(*b).is_err());
+            let result = parser.push_byte_raw(*b);
+            assert!(matches!(result, ParseResult::Incomplete));
         }
 
         let p = parser.push_byte_raw(raw_bytes[13]);
-        assert!(p.is_ok());
-        let raw_packet = p.ok().unwrap();
+        let raw_packet = match p {
+            ParseResult::Complete(packet) => packet,
+            _ => panic!("Expected complete packet"),
+        };
         assert_eq!(raw_packet.len(), raw_bytes.len());
 
         assert_eq!(raw_packet.payload().len(), LinkStatistics::SERIALIZED_LEN);
@@ -282,4 +294,46 @@ mod tests {
         assert!(results[1].is_ok());
         assert_eq!(results[1].unwrap(), &raw_bytes[14..40]);
     }
+
+    #[test]
+    fn test_raw_iterator_and_manual_parse() {
+        let raw_bytes: [u8; 40] = [
+            // Packet 1: LinkStatistics
+            0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252,
+            // Packet 2: RCChannels
+            0xC8, 24, 0x16, 0xE0, 0x03, 0x1F, 0x58, 0xC0, 0x07, 0x16, 0xB0, 0x80, 0x05, 0x2C, 0x60,
+            0x01, 0x0B, 0xF8, 0xC0, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 103,
+        ];
+        let mut parser = CrsfParser::new();
+        let results: std::vec::Vec<Result<&[u8], CrsfError>> =
+            parser.iter_packets_raw(&raw_bytes).collect();
+
+        assert_eq!(results.len(), 2);
+
+        // First packet
+        let raw_packet_bytes_1 = results[0].as_ref().unwrap();
+        assert_eq!(*raw_packet_bytes_1, &raw_bytes[0..14]);
+        let raw_packet_1 = RawCrsfPacket::new(raw_packet_bytes_1).unwrap();
+        let packet_1 = Packet::parse(&raw_packet_1).unwrap();
+
+        // Manually create expected packet to compare
+        let payload_1: &[u8; 10] = raw_packet_1.payload().try_into().unwrap();
+        let ls = LinkStatistics::from_bytes(payload_1);
+        let expected_packet_1 = Packet::LinkStatistics(ls);
+        assert_eq!(expected_packet_1, packet_1);
+
+        // Second packet
+        let raw_packet_bytes_2 = results[1].as_ref().unwrap();
+        assert_eq!(*raw_packet_bytes_2, &raw_bytes[14..40]);
+        let raw_packet_2 = RawCrsfPacket::new(raw_packet_bytes_2).unwrap();
+        let packet_2 = Packet::parse(&raw_packet_2).unwrap();
+
+        // Manually create expected packet to compare
+        let expected_channels = [
+            992, 992, 352, 992, 352, 352, 352, 352, 352, 352, 992, 992, 0, 0, 0, 0,
+        ];
+        let expected_packet_2 = Packet::RCChannels(RcChannelsPacked(expected_channels));
+        assert_eq!(expected_packet_2, packet_2);
+    }
 }
+
