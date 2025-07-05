@@ -1,6 +1,7 @@
 mod airspeed;
 mod baro_altitude;
 mod battery;
+mod flight_mode;
 mod gps;
 mod gps_extended;
 mod gps_time;
@@ -9,11 +10,15 @@ mod link_statistics;
 mod link_statistics_rx;
 mod link_statistics_tx;
 mod rc_channels_packed;
+mod rpm;
+mod temp;
 mod vario;
+mod voltages;
 mod vtx_telemetry;
 
 pub use airspeed::AirSpeed;
 pub use battery::Battery;
+pub use flight_mode::FlightMode;
 pub use gps::Gps;
 pub use gps_extended::GpsExtended;
 pub use gps_time::GpsTime;
@@ -21,7 +26,10 @@ pub use link_statistics::LinkStatistics;
 pub use link_statistics_rx::LinkStatisticsRx;
 pub use link_statistics_tx::LinkStatisticsTx;
 pub use rc_channels_packed::RcChannelsPacked;
+pub use rpm::Rpm;
+pub use temp::Temp;
 pub use vario::VariometerSensor;
+pub use voltages::Voltages;
 
 use num_enum::TryFromPrimitive;
 
@@ -77,6 +85,10 @@ pub enum Packet {
     Vario(VariometerSensor),
     Battery(Battery),
     AirSpeed(AirSpeed),
+    Rpm(Rpm),
+    Temp(Temp),
+    Voltages(Voltages),
+    FlightMode(FlightMode),
     NotImlemented(PacketType, usize),
 }
 
@@ -120,6 +132,18 @@ impl Packet {
                 let data = raw_packet.payload().try_into().unwrap();
                 Ok(Self::AirSpeed(AirSpeed::from_bytes(data)))
             }
+            PacketType::Rpm => {
+                let data = raw_packet.payload();
+                Ok(Self::Rpm(Rpm::from_bytes(data)))
+            }
+            PacketType::Temp => {
+                let data = raw_packet.payload();
+                Ok(Self::Temp(Temp::from_bytes(data)))
+            }
+            PacketType::FlightMode => {
+                let data = raw_packet.payload();
+                Ok(Self::FlightMode(FlightMode::from_bytes(data)))
+            }
 
             _ => Ok(Packet::NotImlemented(
                 packet_type,
@@ -141,6 +165,9 @@ pub enum PacketType {
     BatterySensor = 0x08,
     BaroAltitude = 0x09,
     AirSpeed = 0x0A,
+    Rpm = 0x0C,
+    Temp = 0x0D,
+    Voltages = 0x0E,
     //
     Heartbeat = 0x0B,
     LinkStatistics = 0x14,
