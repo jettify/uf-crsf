@@ -10,6 +10,7 @@
 //    uint8_t reserved;
 //    uint8_t hDOP;           // Horizontal dilution of precision,Dimensionless in nits of.1.
 //    uint8_t vDOP;           // vertical dilution of precision, Dimensionless in nits of .1.
+use crate::CrsfParsingError;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -46,8 +47,12 @@ impl GpsExtended {
         buffer[19] = self.v_dop;
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
-        Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+
+        Ok(Self {
             fix_type: data[0],
             n_speed: i16::from_be_bytes(data[1..3].try_into().unwrap()),
             e_speed: i16::from_be_bytes(data[3..5].try_into().unwrap()),
@@ -60,7 +65,7 @@ impl GpsExtended {
             reserved: data[17],
             h_dop: data[18],
             v_dop: data[19],
-        }
+        })
     }
 }
 
@@ -101,7 +106,7 @@ mod tests {
             1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0, 9, 10, 11, 12,
         ];
 
-        let gps_extended = GpsExtended::from_bytes(&data);
+        let gps_extended = GpsExtended::from_bytes(&data).unwrap();
 
         assert_eq!(
             gps_extended,
@@ -142,7 +147,7 @@ mod tests {
         let mut buffer = [0u8; GpsExtended::SERIALIZED_LEN];
         gps_extended.to_bytes(&mut buffer);
 
-        let round_trip_gps_extended = GpsExtended::from_bytes(&buffer);
+        let round_trip_gps_extended = GpsExtended::from_bytes(&buffer).unwrap();
 
         assert_eq!(gps_extended, round_trip_gps_extended);
     }
@@ -166,7 +171,7 @@ mod tests {
 
         let mut buffer = [0u8; GpsExtended::SERIALIZED_LEN];
         gps_extended.to_bytes(&mut buffer);
-        let round_trip_gps_extended = GpsExtended::from_bytes(&buffer);
+        let round_trip_gps_extended = GpsExtended::from_bytes(&buffer).unwrap();
         assert_eq!(gps_extended, round_trip_gps_extended);
     }
 }

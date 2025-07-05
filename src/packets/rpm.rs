@@ -1,3 +1,4 @@
+use crate::CrsfParsingError;
 use heapless::Vec;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,7 +22,10 @@ impl Rpm {
         i
     }
 
-    pub fn from_bytes(data: &[u8]) -> Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() > Self::MAX_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         let rpm_source_id = data[0];
         let rpm_values: Vec<i32, 19> = data[1..]
             .chunks_exact(3)
@@ -34,10 +38,10 @@ impl Rpm {
             })
             .collect();
 
-        Self {
+        Ok(Self {
             rpm_source_id,
             rpm_values,
-        }
+        })
     }
 }
 
@@ -59,7 +63,7 @@ mod tests {
         let len = rpm.to_bytes(&mut buffer);
 
         let expected_bytes: [u8; 7] = [
-            1,    // Source ID
+            1, // Source ID
             0x00, 0x03, 0xe8, // 1000
             0xff, 0xf8, 0x30, // -2000
         ];
@@ -71,12 +75,12 @@ mod tests {
     #[test]
     fn test_rpm_from_bytes() {
         let data: [u8; 7] = [
-            1,    // Source ID
+            1, // Source ID
             0x00, 0x03, 0xe8, // 1000
             0xff, 0xf8, 0x30, // -2000
         ];
 
-        let rpm = Rpm::from_bytes(&data);
+        let rpm = Rpm::from_bytes(&data).unwrap();
 
         let mut expected_rpm_values: Vec<i32, 19> = Vec::new();
         expected_rpm_values.push(1000).unwrap();
@@ -98,7 +102,7 @@ mod tests {
         let mut buffer = [0u8; Rpm::MAX_LEN];
         let len = rpm.to_bytes(&mut buffer);
 
-        let round_trip_rpm = Rpm::from_bytes(&buffer[..len]);
+        let round_trip_rpm = Rpm::from_bytes(&buffer[..len]).unwrap();
 
         assert_eq!(rpm, round_trip_rpm);
     }
@@ -116,7 +120,7 @@ mod tests {
 
         let mut buffer = [0u8; Rpm::MAX_LEN];
         let len = rpm.to_bytes(&mut buffer);
-        let round_trip_rpm = Rpm::from_bytes(&buffer[..len]);
+        let round_trip_rpm = Rpm::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(rpm, round_trip_rpm);
     }
 }

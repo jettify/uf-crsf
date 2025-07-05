@@ -3,6 +3,7 @@
 //!                                     // See description below.
 //!     int8_t   vertical_speed_packed; // vertical speed. See description below.
 
+use crate::CrsfParsingError;
 use core::f32::consts::E;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -23,11 +24,19 @@ impl BaroAltitude {
         buffer[2] = self.vertical_speed_packed as u8;
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
-        Self {
-            altitude_packed: u16::from_be_bytes(data[0..2].try_into().unwrap()),
-            vertical_speed_packed: data[2] as i8,
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
         }
+
+        Ok(Self {
+            altitude_packed: u16::from_be_bytes(
+                data[0..2]
+                    .try_into()
+                    .map_err(|_| CrsfParsingError::InvalidPayloadLength)?,
+            ),
+            vertical_speed_packed: data[2] as i8,
+        })
     }
 
     /// MSB = 0: altitude is in decimeters - 10000dm offset (so 0 represents -1000m; 10000 represents 0m (starting altitude); 0x7fff represents 2276.7m);
@@ -168,7 +177,7 @@ mod tests {
             0xce, // vertical_speed_packed: -50
         ];
 
-        let baro_altitude = BaroAltitude::from_bytes(&data);
+        let baro_altitude = BaroAltitude::from_bytes(&data).unwrap();
 
         assert_eq!(
             baro_altitude,
@@ -189,7 +198,7 @@ mod tests {
         let mut buffer = [0u8; BaroAltitude::SERIALIZED_LEN];
         baro_altitude.to_bytes(&mut buffer);
 
-        let round_trip_baro_altitude = BaroAltitude::from_bytes(&buffer);
+        let round_trip_baro_altitude = BaroAltitude::from_bytes(&buffer).unwrap();
 
         assert_eq!(baro_altitude, round_trip_baro_altitude);
     }
@@ -203,7 +212,7 @@ mod tests {
 
         let mut buffer = [0u8; BaroAltitude::SERIALIZED_LEN];
         baro_altitude.to_bytes(&mut buffer);
-        let round_trip_baro_altitude = BaroAltitude::from_bytes(&buffer);
+        let round_trip_baro_altitude = BaroAltitude::from_bytes(&buffer).unwrap();
         assert_eq!(baro_altitude, round_trip_baro_altitude);
     }
 }

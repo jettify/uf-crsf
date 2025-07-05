@@ -1,12 +1,5 @@
-//! GPS Packet
-//!
-//!    int32_t latitude;       // degree / 10`000`000
-//!    int32_t longitude;      // degree / 10`000`000
-//!    uint16_t groundspeed;   // km/h / 100
-//!    uint16_t heading;       // degree / 100
-//!    uint16_t altitude;      // meter - 1000m offset
-//!    uint8_t satellites;     // # of sats in view
-//!
+use crate::CrsfParsingError;
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Gps {
@@ -30,15 +23,19 @@ impl Gps {
         buffer[15] = self.satellites;
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
-        Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+
+        Ok(Self {
             latitude: i32::from_be_bytes(data[0..4].try_into().unwrap()),
             longitude: i32::from_be_bytes(data[4..8].try_into().unwrap()),
             groundspeed: u16::from_be_bytes(data[8..10].try_into().unwrap()),
             heading: u16::from_be_bytes(data[10..12].try_into().unwrap()),
             altitude: u16::from_be_bytes(data[12..14].try_into().unwrap()),
             satellites: data[15],
-        }
+        })
     }
 }
 
@@ -49,8 +46,8 @@ mod tests {
     #[test]
     fn test_gps() {
         let raw_bytes: [u8; 16] = [0; 16];
-        let data = &raw_bytes[0..16].try_into().unwrap();
-        let gps = Gps::from_bytes(data);
+        let data = &raw_bytes[0..16];
+        let gps = Gps::from_bytes(data).unwrap();
 
         assert_eq!(gps.altitude, 0);
         assert_eq!(gps.longitude, 0);

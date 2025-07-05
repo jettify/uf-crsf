@@ -5,6 +5,8 @@
 //!    uint8_t rf_power_db;    // rf power in dBm
 //!    uint8_t fps;            // rf frames per second (fps / 10)
 //!
+use crate::CrsfParsingError;
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct LinkStatisticsTx {
@@ -28,15 +30,18 @@ impl LinkStatisticsTx {
         buffer[5] = self.fps;
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
-        Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+        Ok(Self {
             rssi_db: data[0],
             rssi_percent: data[1],
             link_quality: data[2],
             snr: data[3] as i8,
             rf_power_db: data[4],
             fps: data[5],
-        }
+        })
     }
 }
 
@@ -67,7 +72,7 @@ mod tests {
     fn test_link_statistics_tx_from_bytes() {
         let data: [u8; LinkStatisticsTx::SERIALIZED_LEN] = [100, 75, 90, 246, 20, 50];
 
-        let link_statistics_tx = LinkStatisticsTx::from_bytes(&data);
+        let link_statistics_tx = LinkStatisticsTx::from_bytes(&data).unwrap();
 
         assert_eq!(
             link_statistics_tx,
@@ -96,7 +101,7 @@ mod tests {
         let mut buffer = [0u8; LinkStatisticsTx::SERIALIZED_LEN];
         link_statistics_tx.to_bytes(&mut buffer);
 
-        let round_trip_link_statistics_tx = LinkStatisticsTx::from_bytes(&buffer);
+        let round_trip_link_statistics_tx = LinkStatisticsTx::from_bytes(&buffer).unwrap();
 
         assert_eq!(link_statistics_tx, round_trip_link_statistics_tx);
     }
@@ -114,7 +119,7 @@ mod tests {
 
         let mut buffer = [0u8; LinkStatisticsTx::SERIALIZED_LEN];
         link_statistics_tx.to_bytes(&mut buffer);
-        let round_trip_link_statistics_tx = LinkStatisticsTx::from_bytes(&buffer);
+        let round_trip_link_statistics_tx = LinkStatisticsTx::from_bytes(&buffer).unwrap();
         assert_eq!(link_statistics_tx, round_trip_link_statistics_tx);
     }
 }

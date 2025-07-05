@@ -1,3 +1,4 @@
+use crate::CrsfParsingError;
 use heapless::String;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,12 +22,15 @@ impl FlightMode {
         }
     }
 
-    pub fn from_bytes(data: &[u8]) -> Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
         let null_pos = data.iter().position(|&b| b == 0).unwrap_or(data.len());
-        let s = core::str::from_utf8(&data[..null_pos]).unwrap_or("");
+        let s = core::str::from_utf8(&data[..null_pos])
+            .map_err(|_| CrsfParsingError::InvalidPayload)?;
         let mut flight_mode = String::new();
-        flight_mode.push_str(s).unwrap();
-        Self { flight_mode }
+        flight_mode
+            .push_str(s)
+            .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        Ok(Self { flight_mode })
     }
 }
 
@@ -54,7 +58,7 @@ mod tests {
     #[test]
     fn test_flight_mode_from_bytes() {
         let data: [u8; 5] = [b'A', b'C', b'R', b'O', 0];
-        let flight_mode = FlightMode::from_bytes(&data);
+        let flight_mode = FlightMode::from_bytes(&data).unwrap();
 
         let mut expected_flight_mode_str: String<63> = String::new();
         expected_flight_mode_str.push_str("ACRO").unwrap();
@@ -64,7 +68,7 @@ mod tests {
     #[test]
     fn test_flight_mode_from_bytes_no_null() {
         let data: [u8; 4] = [b'A', b'C', b'R', b'O'];
-        let flight_mode = FlightMode::from_bytes(&data);
+        let flight_mode = FlightMode::from_bytes(&data).unwrap();
 
         let mut expected_flight_mode_str: String<63> = String::new();
         expected_flight_mode_str.push_str("ACRO").unwrap();
@@ -82,7 +86,7 @@ mod tests {
         let mut buffer = [0u8; FlightMode::MAX_LEN];
         let len = flight_mode.to_bytes(&mut buffer);
 
-        let round_trip_flight_mode = FlightMode::from_bytes(&buffer[..len]);
+        let round_trip_flight_mode = FlightMode::from_bytes(&buffer[..len]).unwrap();
 
         assert_eq!(flight_mode, round_trip_flight_mode);
     }
@@ -96,7 +100,7 @@ mod tests {
 
         let mut buffer = [0u8; FlightMode::MAX_LEN];
         let len = flight_mode.to_bytes(&mut buffer);
-        let round_trip_flight_mode = FlightMode::from_bytes(&buffer[..len]);
+        let round_trip_flight_mode = FlightMode::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(flight_mode, round_trip_flight_mode);
         assert_eq!(len, 1);
         assert_eq!(buffer[0], 0);

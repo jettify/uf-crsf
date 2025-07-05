@@ -1,3 +1,5 @@
+use crate::CrsfParsingError;
+
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RcChannelsPacked(pub [u16; 16]);
@@ -31,8 +33,13 @@ impl RcChannelsPacked {
         data[21] = (ch[15] >> 3) as u8;
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
         let data: [u16; Self::SERIALIZED_LEN] = core::array::from_fn(|i| data[i] as u16);
+
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+
         const MASK_11BIT: u16 = 0x07FF;
         let mut ch = [MASK_11BIT; 16];
         ch[0] &= data[0] | (data[1] << 8);
@@ -51,8 +58,7 @@ impl RcChannelsPacked {
         ch[13] &= (data[17] >> 7) | (data[18] << 1) | (data[19] << 9);
         ch[14] &= (data[19] >> 2) | (data[20] << 6);
         ch[15] &= (data[20] >> 5) | (data[21] << 3);
-
-        RcChannelsPacked(ch)
+        Ok(RcChannelsPacked(ch))
     }
 }
 #[cfg(test)]
@@ -64,8 +70,8 @@ mod tests {
             0xC8, 24, 0x16, 0x03, 0x1F, 0x58, 0xC0, 0x07, 0x16, 0xB0, 0x80, 0x05, 0x2C, 0x60, 0x01,
             0x0B, 0xF8, 0xC0, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 252,
         ];
-        let data = &raw_bytes[3..25].try_into().unwrap();
-        let rc = RcChannelsPacked::from_bytes(data);
+        let data = &raw_bytes[3..25];
+        let rc = RcChannelsPacked::from_bytes(data).unwrap();
         let mut buffer: [u8; 22] = [0; 22];
         rc.to_bytes(&mut buffer);
         assert_eq!(&buffer, data);

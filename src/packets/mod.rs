@@ -1,3 +1,5 @@
+use crate::CrsfParsingError;
+
 mod airspeed;
 mod baro_altitude;
 mod battery;
@@ -17,6 +19,7 @@ mod voltages;
 mod vtx_telemetry;
 
 pub use airspeed::AirSpeed;
+pub use baro_altitude::BaroAltitude;
 pub use battery::Battery;
 pub use flight_mode::FlightMode;
 pub use gps::Gps;
@@ -69,15 +72,11 @@ impl<'a> RawCrsfPacket<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CrsfParsingError {
-    UnexpectedPacketType(u8),
-    PacketNotImlemented(u8),
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Packet {
     LinkStatistics(LinkStatistics),
+    LinkStatisticsRx(LinkStatisticsRx),
+    LinkStatisticsTx(LinkStatisticsTx),
     RCChannels(RcChannelsPacked),
     Gps(Gps),
     GpsTime(GpsTime),
@@ -85,6 +84,7 @@ pub enum Packet {
     Vario(VariometerSensor),
     Battery(Battery),
     AirSpeed(AirSpeed),
+    BaroAltitude(BaroAltitude),
     Rpm(Rpm),
     Temp(Temp),
     Voltages(Voltages),
@@ -96,54 +96,33 @@ impl Packet {
     pub fn parse(raw_packet: &RawCrsfPacket<'_>) -> Result<Packet, CrsfParsingError> {
         let packet_type = PacketType::try_from_primitive(raw_packet.raw_packet_type())
             .map_err(|_| CrsfParsingError::UnexpectedPacketType(raw_packet.raw_packet_type()))?;
-        match packet_type {
-            PacketType::LinkStatistics
-                if raw_packet.payload().len() == LinkStatistics::SERIALIZED_LEN =>
-            {
-                let data = raw_packet.payload().try_into().unwrap();
-                Ok(Self::LinkStatistics(LinkStatistics::from_bytes(data)))
-            }
-            PacketType::RcChannelsPacked
-                if raw_packet.payload().len() == RcChannelsPacked::SERIALIZED_LEN =>
-            {
-                let data = raw_packet.payload().try_into().unwrap();
-                Ok(Self::RCChannels(RcChannelsPacked::from_bytes(data)))
-            }
-            PacketType::Gps if raw_packet.payload().len() == Gps::SERIALIZED_LEN => {
-                let data = raw_packet.payload().try_into().unwrap();
-                Ok(Self::Gps(Gps::from_bytes(data)))
-            }
-            PacketType::GpsTime if raw_packet.payload().len() == GpsTime::SERIALIZED_LEN => {
-                let data = raw_packet.payload().try_into().unwrap();
-                Ok(Self::GpsTime(GpsTime::from_bytes(data)))
-            }
-            PacketType::GpsExtended
-                if raw_packet.payload().len() == GpsExtended::SERIALIZED_LEN =>
-            {
-                let data = raw_packet.payload().try_into().unwrap();
-                Ok(Self::GpsExtended(GpsExtended::from_bytes(data)))
-            }
 
-            PacketType::BatterySensor if raw_packet.payload().len() == Battery::SERIALIZED_LEN => {
-                let data = raw_packet.payload().try_into().unwrap();
-                Ok(Self::Battery(Battery::from_bytes(data)))
+        let data = raw_packet.payload().try_into().unwrap();
+        match packet_type {
+            PacketType::LinkStatistics => {
+                Ok(Self::LinkStatistics(LinkStatistics::from_bytes(data)?))
             }
-            PacketType::AirSpeed if raw_packet.payload().len() == AirSpeed::SERIALIZED_LEN => {
-                let data = raw_packet.payload().try_into().unwrap();
-                Ok(Self::AirSpeed(AirSpeed::from_bytes(data)))
+            PacketType::LinkStatisticsTx => {
+                Ok(Self::LinkStatisticsTx(LinkStatisticsTx::from_bytes(data)?))
             }
-            PacketType::Rpm => {
-                let data = raw_packet.payload();
-                Ok(Self::Rpm(Rpm::from_bytes(data)))
+            PacketType::LinkStatisticsRx => {
+                Ok(Self::LinkStatisticsRx(LinkStatisticsRx::from_bytes(data)?))
             }
-            PacketType::Temp => {
-                let data = raw_packet.payload();
-                Ok(Self::Temp(Temp::from_bytes(data)))
+            PacketType::RcChannelsPacked => {
+                Ok(Self::RCChannels(RcChannelsPacked::from_bytes(data)?))
             }
-            PacketType::FlightMode => {
-                let data = raw_packet.payload();
-                Ok(Self::FlightMode(FlightMode::from_bytes(data)))
-            }
+            PacketType::Gps => Ok(Self::Gps(Gps::from_bytes(data)?)),
+            PacketType::GpsTime => Ok(Self::GpsTime(GpsTime::from_bytes(data)?)),
+            PacketType::GpsExtended => Ok(Self::GpsExtended(GpsExtended::from_bytes(data)?)),
+            PacketType::AirSpeed => Ok(Self::AirSpeed(AirSpeed::from_bytes(data)?)),
+            PacketType::BaroAltitude => Ok(Self::BaroAltitude(BaroAltitude::from_bytes(data)?)),
+
+            PacketType::BatterySensor => Ok(Self::Battery(Battery::from_bytes(data)?)),
+            PacketType::FlightMode => Ok(Self::FlightMode(FlightMode::from_bytes(data)?)),
+            PacketType::Rpm => Ok(Self::Rpm(Rpm::from_bytes(data)?)),
+            PacketType::Temp => Ok(Self::Temp(Temp::from_bytes(data)?)),
+            PacketType::Voltages => Ok(Self::Voltages(Voltages::from_bytes(data)?)),
+            PacketType::Vario => Ok(Self::Vario(VariometerSensor::from_bytes(data)?)),
 
             _ => Ok(Packet::NotImlemented(
                 packet_type,
@@ -171,10 +150,11 @@ pub enum PacketType {
     //
     Heartbeat = 0x0B,
     LinkStatistics = 0x14,
+
     RcChannelsPacked = 0x16,
     SubsetRcChannelsPacked = 0x17,
-    LinkRxId = 0x1C,
-    LinkTxId = 0x1D,
+    LinkStatisticsRx = 0x1C,
+    LinkStatisticsTx = 0x1D,
     Attitude = 0x1E,
     FlightMode = 0x21,
     DevicePing = 0x28,

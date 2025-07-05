@@ -2,11 +2,18 @@
 // use num_enum::TryFromPrimitive;
 mod packets;
 use num_enum::TryFromPrimitive;
-use packets::CrsfParsingError;
 use packets::Packet;
 use packets::PacketAddress;
 use packets::RawCrsfPacket;
 extern crate std;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CrsfParsingError {
+    UnexpectedPacketType(u8),
+    PacketNotImlemented(u8),
+    InvalidPayloadLength,
+    InvalidPayload,
+}
 
 pub mod constants {
     pub const CRSF_SYNC_BYTE: u8 = 0xC8;
@@ -134,12 +141,10 @@ impl CrsfParser {
 
     pub fn push_byte(&mut self, byte: u8) -> ParseResult<Packet> {
         match self.push_byte_raw(byte) {
-            ParseResult::Complete(raw_packet) => {
-                match Packet::parse(&raw_packet) {
-                    Ok(packet) => ParseResult::Complete(packet),
-                    Err(e) => ParseResult::Error(CrsfError::ParsingError(e)),
-                }
-            }
+            ParseResult::Complete(raw_packet) => match Packet::parse(&raw_packet) {
+                Ok(packet) => ParseResult::Complete(packet),
+                Err(e) => ParseResult::Error(CrsfError::ParsingError(e)),
+            },
             ParseResult::Incomplete => ParseResult::Incomplete,
             ParseResult::Error(e) => ParseResult::Error(e),
         }
@@ -245,8 +250,8 @@ mod tests {
             PacketType::LinkStatistics as u8
         );
 
-        let data = &raw_packet.payload().try_into().unwrap();
-        let ls = LinkStatistics::from_bytes(data);
+        let data = &raw_packet.payload();
+        let ls = LinkStatistics::from_bytes(data).unwrap();
         let p = Packet::parse(&raw_packet).unwrap();
         assert_eq!(Packet::LinkStatistics(ls.clone()), p);
 
@@ -318,7 +323,7 @@ mod tests {
 
         // Manually create expected packet to compare
         let payload_1: &[u8; 10] = raw_packet_1.payload().try_into().unwrap();
-        let ls = LinkStatistics::from_bytes(payload_1);
+        let ls = LinkStatistics::from_bytes(payload_1).unwrap();
         let expected_packet_1 = Packet::LinkStatistics(ls);
         assert_eq!(expected_packet_1, packet_1);
 
@@ -336,4 +341,3 @@ mod tests {
         assert_eq!(expected_packet_2, packet_2);
     }
 }
-

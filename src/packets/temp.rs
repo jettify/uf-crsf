@@ -1,3 +1,5 @@
+use crate::CrsfParsingError;
+
 use heapless::Vec;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,7 +23,11 @@ impl Temp {
         i
     }
 
-    pub fn from_bytes(data: &[u8]) -> Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() >= Self::MAX_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+
         let temp_source_id = data[0];
         let temperatures: Vec<i16, 20> = data[1..]
             .chunks_exact(2)
@@ -31,10 +37,10 @@ impl Temp {
             })
             .collect();
 
-        Self {
+        Ok(Self {
             temp_source_id,
             temperatures,
-        }
+        })
     }
 }
 
@@ -56,7 +62,7 @@ mod tests {
         let len = temp.to_bytes(&mut buffer);
 
         let expected_bytes: [u8; 5] = [
-            1,    // Source ID
+            1, // Source ID
             0x00, 0xfa, // 250
             0xff, 0xce, // -50
         ];
@@ -68,12 +74,12 @@ mod tests {
     #[test]
     fn test_temp_from_bytes() {
         let data: [u8; 5] = [
-            1,    // Source ID
+            1, // Source ID
             0x00, 0xfa, // 250
             0xff, 0xce, // -50
         ];
 
-        let temp = Temp::from_bytes(&data);
+        let temp = Temp::from_bytes(&data).unwrap();
 
         let mut expected_temperatures: Vec<i16, 20> = Vec::new();
         expected_temperatures.push(250).unwrap();
@@ -95,7 +101,7 @@ mod tests {
         let mut buffer = [0u8; Temp::MAX_LEN];
         let len = temp.to_bytes(&mut buffer);
 
-        let round_trip_temp = Temp::from_bytes(&buffer[..len]);
+        let round_trip_temp = Temp::from_bytes(&buffer[..len]).unwrap();
 
         assert_eq!(temp, round_trip_temp);
     }
@@ -113,7 +119,7 @@ mod tests {
 
         let mut buffer = [0u8; Temp::MAX_LEN];
         let len = temp.to_bytes(&mut buffer);
-        let round_trip_temp = Temp::from_bytes(&buffer[..len]);
+        let round_trip_temp = Temp::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(temp, round_trip_temp);
     }
 }

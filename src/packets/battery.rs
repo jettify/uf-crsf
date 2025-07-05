@@ -1,3 +1,5 @@
+use crate::CrsfParsingError;
+
 //    int16_t voltage;        // Voltage (LSB = 10 µV)
 //    int16_t current;        // Current (LSB = 10 µA)
 //    uint24_t capacity_used; // Capacity used (mAh)
@@ -22,16 +24,27 @@ impl Battery {
         buffer[7] = self.remaining;
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         let mut capacity_bytes: [u8; 4] = [0; 4];
         capacity_bytes[1..].copy_from_slice(&data[4..7]);
 
-        Self {
-            voltage: i16::from_be_bytes(data[0..2].try_into().unwrap()),
-            current: i16::from_be_bytes(data[2..4].try_into().unwrap()),
+        Ok(Self {
+            voltage: i16::from_be_bytes(
+                data[0..2]
+                    .try_into()
+                    .map_err(|_| CrsfParsingError::InvalidPayloadLength)?,
+            ),
+            current: i16::from_be_bytes(
+                data[2..4]
+                    .try_into()
+                    .map_err(|_| CrsfParsingError::InvalidPayloadLength)?,
+            ),
             capacity_used: u32::from_be_bytes(capacity_bytes),
             remaining: data[7],
-        }
+        })
     }
 }
 
@@ -70,7 +83,7 @@ mod tests {
             0x4b, // Remaining: 75
         ];
 
-        let battery = Battery::from_bytes(&data);
+        let battery = Battery::from_bytes(&data).unwrap();
 
         assert_eq!(
             battery,
@@ -95,7 +108,7 @@ mod tests {
         let mut buffer = [0u8; Battery::SERIALIZED_LEN];
         battery.to_bytes(&mut buffer);
 
-        let round_trip_battery = Battery::from_bytes(&buffer);
+        let round_trip_battery = Battery::from_bytes(&buffer).unwrap();
 
         assert_eq!(battery, round_trip_battery);
     }
@@ -111,7 +124,7 @@ mod tests {
 
         let mut buffer = [0u8; Battery::SERIALIZED_LEN];
         battery.to_bytes(&mut buffer);
-        let round_trip_battery = Battery::from_bytes(&buffer);
+        let round_trip_battery = Battery::from_bytes(&buffer).unwrap();
         assert_eq!(battery, round_trip_battery);
     }
 }

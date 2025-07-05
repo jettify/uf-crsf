@@ -1,3 +1,5 @@
+use crate::CrsfParsingError;
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct VariometerSensor {
@@ -11,10 +13,14 @@ impl VariometerSensor {
         buffer[..2].copy_from_slice(&self.v_speed.to_be_bytes());
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
-        Self {
-            v_speed: i16::from_be_bytes([data[0], data[1]]),
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
         }
+
+        Ok(Self {
+            v_speed: i16::from_be_bytes([data[0], data[1]]),
+        })
     }
 }
 
@@ -25,9 +31,9 @@ mod tests {
     #[test]
     fn test_vario() {
         let raw_bytes: [u8; 2] = [0; 2];
-        let data = &raw_bytes[0..2].try_into().unwrap();
+        let data = &raw_bytes[0..2];
 
-        let vario = VariometerSensor::from_bytes(data);
+        let vario = VariometerSensor::from_bytes(data).unwrap();
         assert_eq!(vario.v_speed, 0);
 
         let mut buffer: [u8; 2] = [0; 2];

@@ -8,6 +8,7 @@
 //! uint8_t second;
 //! uint16_t millisecond;
 //!
+use crate::CrsfParsingError;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GpsTime {
@@ -33,8 +34,12 @@ impl GpsTime {
         buffer[7..9].copy_from_slice(&self.millisecond.to_be_bytes());
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
-        Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+
+        Ok(Self {
             year: i16::from_be_bytes(data[0..2].try_into().unwrap()),
             month: data[2],
             day: data[3],
@@ -42,7 +47,7 @@ impl GpsTime {
             minute: data[5],
             second: data[6],
             millisecond: u16::from_be_bytes(data[7..9].try_into().unwrap()),
-        }
+        })
     }
 }
 
@@ -90,7 +95,7 @@ mod tests {
             0x03, 0x15, // Millisecond: 789
         ];
 
-        let gps_time = GpsTime::from_bytes(&data);
+        let gps_time = GpsTime::from_bytes(&data).unwrap();
 
         assert_eq!(
             gps_time,
@@ -121,7 +126,7 @@ mod tests {
         let mut buffer = [0u8; GpsTime::SERIALIZED_LEN];
         gps_time.to_bytes(&mut buffer);
 
-        let round_trip_gps_time = GpsTime::from_bytes(&buffer);
+        let round_trip_gps_time = GpsTime::from_bytes(&buffer).unwrap();
 
         assert_eq!(gps_time, round_trip_gps_time);
     }
@@ -140,7 +145,7 @@ mod tests {
 
         let mut buffer = [0u8; GpsTime::SERIALIZED_LEN];
         gps_time.to_bytes(&mut buffer);
-        let round_trip_gps_time = GpsTime::from_bytes(&buffer);
+        let round_trip_gps_time = GpsTime::from_bytes(&buffer).unwrap();
         assert_eq!(gps_time, round_trip_gps_time);
     }
 }

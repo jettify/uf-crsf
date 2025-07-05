@@ -1,3 +1,5 @@
+use crate::packets::CrsfParsingError;
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct LinkStatistics {
@@ -29,18 +31,22 @@ impl LinkStatistics {
         buffer[9] = self.downlink_snr as u8;
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
-        Self {
-            uplink_rssi_1: data[0],
-            uplink_rssi_2: data[1],
-            uplink_link_quality: data[2],
-            uplink_snr: data[3] as i8,
-            active_antenna: data[4],
-            rf_mode: data[5],
-            uplink_tx_power: data[6],
-            downlink_rssi: data[7],
-            downlink_link_quality: data[8],
-            downlink_snr: data[9] as i8,
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            Err(CrsfParsingError::InvalidPayloadLength)
+        } else {
+            Ok(Self {
+                uplink_rssi_1: data[0],
+                uplink_rssi_2: data[1],
+                uplink_link_quality: data[2],
+                uplink_snr: data[3] as i8,
+                active_antenna: data[4],
+                rf_mode: data[5],
+                uplink_tx_power: data[6],
+                downlink_rssi: data[7],
+                downlink_link_quality: data[8],
+                downlink_snr: data[9] as i8,
+            })
         }
     }
 }
@@ -51,8 +57,8 @@ mod tests {
     #[test]
     fn test_basic_link_stat() {
         let raw_bytes: [u8; 14] = [0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252];
-        let data = &raw_bytes[3..13].try_into().unwrap();
-        let ls = LinkStatistics::from_bytes(data);
+        let data = &raw_bytes[3..13];
+        let ls = LinkStatistics::from_bytes(data).unwrap();
         let mut buffer: [u8; 10] = [0; 10];
         ls.to_bytes(&mut buffer);
         assert_eq!(ls.uplink_rssi_1, 16);

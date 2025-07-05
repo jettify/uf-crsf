@@ -1,3 +1,4 @@
+use crate::CrsfParsingError;
 use heapless::Vec;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,7 +22,10 @@ impl Voltages {
         i
     }
 
-    pub fn from_bytes(data: &[u8]) -> Self {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() > Self::MAX_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         let voltage_source_id = data[0];
         let voltage_values: Vec<u16, 29> = data[1..]
             .chunks_exact(2)
@@ -31,10 +35,10 @@ impl Voltages {
             })
             .collect();
 
-        Self {
+        Ok(Self {
             voltage_source_id,
             voltage_values,
-        }
+        })
     }
 }
 
@@ -73,7 +77,7 @@ mod tests {
             0x0f, 0x3c, // 3900
         ];
 
-        let voltages = Voltages::from_bytes(&data);
+        let voltages = Voltages::from_bytes(&data).unwrap();
 
         let mut expected_voltage_values: Vec<u16, 29> = Vec::new();
         expected_voltage_values.push(3850).unwrap();
@@ -95,7 +99,7 @@ mod tests {
         let mut buffer = [0u8; Voltages::MAX_LEN];
         let len = voltages.to_bytes(&mut buffer);
 
-        let round_trip_voltages = Voltages::from_bytes(&buffer[..len]);
+        let round_trip_voltages = Voltages::from_bytes(&buffer[..len]).unwrap();
 
         assert_eq!(voltages, round_trip_voltages);
     }
@@ -112,7 +116,7 @@ mod tests {
 
         let mut buffer = [0u8; Voltages::MAX_LEN];
         let len = voltages.to_bytes(&mut buffer);
-        let round_trip_voltages = Voltages::from_bytes(&buffer[..len]);
+        let round_trip_voltages = Voltages::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(voltages, round_trip_voltages);
     }
 }
