@@ -101,6 +101,7 @@ impl CrsfParser {
         PacketIterator {
             parser: self,
             buffer,
+            pos: 0,
         }
     }
 
@@ -203,19 +204,16 @@ impl<'a, 'b> Iterator for RawPacketIterator<'a, 'b> {
 pub struct PacketIterator<'a, 'b> {
     parser: &'a mut CrsfParser,
     buffer: &'b [u8],
+    pos: usize,
 }
 
 impl Iterator for PacketIterator<'_, '_> {
     type Item = Result<Packet, CrsfError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.buffer.is_empty() {
-                break;
-            }
-
-            let byte = self.buffer[0];
-            self.buffer = &self.buffer[1..];
+        while self.pos < self.buffer.len() {
+            let byte = self.buffer[self.pos];
+            self.pos += 1;
 
             match self.parser.push_byte(byte) {
                 ParseResult::Complete(packet) => return Some(Ok(packet)),
