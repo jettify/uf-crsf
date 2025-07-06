@@ -6,7 +6,7 @@ pub mod packets;
 pub mod parser;
 
 pub use error::{CrsfError, CrsfParsingError};
-pub use packets::{Packet, PacketAddress, PacketType};
+pub use packets::{write_packet_to_buffer, Packet, PacketAddress, PacketType};
 pub use parser::{CrsfParser, RawCrsfPacket};
 
 #[cfg(test)]

@@ -1,5 +1,7 @@
+use crate::constants;
 use crate::error::CrsfParsingError;
 use crate::parser::RawCrsfPacket;
+use crc;
 
 mod airspeed;
 mod baro_altitude;
@@ -199,4 +201,107 @@ pub enum PacketAddress {
     Handset = 0xEA,
     Receiver = 0xEC,
     Transmitter = 0xEE,
+}
+
+pub fn write_packet_to_buffer<T: CrsfPacket>(
+    buffer: &mut [u8],
+    dest: PacketAddress,
+    packet: &T,
+) -> Result<usize, CrsfParsingError> {
+    const MAX_PAYLOAD_SIZE: usize = constants::CRSF_MAX_PACKET_SIZE - 4;
+    let mut payload_buf = [0u8; MAX_PAYLOAD_SIZE];
+
+    let payload_size = packet.to_bytes(&mut payload_buf)?;
+
+    let total_frame_size = payload_size + 4;
+    if buffer.len() < total_frame_size {
+        return Err(CrsfParsingError::BufferOverflow);
+    }
+
+    // length byte = 1 (type) + payload_size
+    let length_byte = (1 + payload_size) as u8;
+
+    buffer[0] = dest as u8;
+    buffer[1] = length_byte;
+    buffer[2] = T::PACKET_TYPE as u8;
+    buffer[3..3 + payload_size].copy_from_slice(&payload_buf[..payload_size]);
+
+    // CRC is calculated over type and payload
+    let crc_payload = &buffer[2..3 + payload_size];
+    let crc8_dvb_s2 = crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2);
+    let mut digest = crc8_dvb_s2.digest();
+    digest.update(crc_payload);
+    let calculated_crc = digest.finalize();
+
+    buffer[3 + payload_size] = calculated_crc;
+
+    Ok(total_frame_size)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct MockPacket {
+        payload: [u8; 2],
+    }
+
+    impl CrsfPacket for MockPacket {
+        const PACKET_TYPE: PacketType = PacketType::Command;
+        const MIN_PAYLOAD_SIZE: usize = 2;
+
+        fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+            // Not needed for this test
+            Ok(Self {
+                payload: [data[0], data[1]],
+            })
+        }
+
+        fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+            buffer[..2].copy_from_slice(&self.payload);
+            Ok(2)
+        }
+    }
+
+    #[test]
+    fn test_write_packet_to_buffer() {
+        let mut buffer = [0u8; 64];
+        let packet = MockPacket {
+            payload: [0xAA, 0xBB],
+        };
+        let dest = PacketAddress::FlightController;
+
+        let result = write_packet_to_buffer(&mut buffer, dest, &packet);
+
+        assert!(result.is_ok());
+        let bytes_written = result.unwrap();
+        assert_eq!(bytes_written, 6);
+
+        // Destination, Length, Type, Payload, CRC
+        // Length = Type (1) + Payload (2) = 3
+        // CRC is calculated over Type and Payload
+        let expected_packet: [u8; 6] = [
+            dest as u8,
+            3,
+            MockPacket::PACKET_TYPE as u8,
+            0xAA,
+            0xBB,
+            0x32,
+        ];
+        assert_eq!(&buffer[..bytes_written], &expected_packet[..]);
+    }
+
+    #[test]
+    fn test_write_packet_to_buffer_overflow() {
+        let mut buffer = [0u8; 5]; // Too small for a 6-byte packet
+        let packet = MockPacket {
+            payload: [0xAA, 0xBB],
+        };
+        let dest = PacketAddress::FlightController;
+
+        let result = write_packet_to_buffer(&mut buffer, dest, &packet);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), CrsfParsingError::BufferOverflow);
+    }
 }
