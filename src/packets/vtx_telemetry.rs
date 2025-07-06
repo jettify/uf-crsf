@@ -10,6 +10,7 @@
 //!  uint8_t     down_rssi;          // Downlink RSSI (dBm * -1)
 //!  uint8_t     down_link_quality;  // Downlink Package success rate / Link quality (%)
 //!  int8_t      down_snr;           // Downlink SNR (dB)
+use crate::CrsfParsingError;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -42,18 +43,22 @@ impl VtxTelemetry {
         buffer[9] = self.down_snr as u8;
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Self {
-        Self {
-            up_rssi_ant1: data[0],
-            up_rssi_ant2: data[1],
-            up_link_quality: data[2],
-            up_snr: data[3] as i8,
-            active_antenna: data[4],
-            rf_profile: data[5],
-            up_rf_power: data[6],
-            down_rssi: data[7],
-            down_link_quality: data[8],
-            down_snr: data[9] as i8,
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            Err(CrsfParsingError::InvalidPayloadLength)
+        } else {
+            Ok(Self {
+                up_rssi_ant1: data[0],
+                up_rssi_ant2: data[1],
+                up_link_quality: data[2],
+                up_snr: data[3] as i8,
+                active_antenna: data[4],
+                rf_profile: data[5],
+                up_rf_power: data[6],
+                down_rssi: data[7],
+                down_link_quality: data[8],
+                down_snr: data[9] as i8,
+            })
         }
     }
 }
@@ -90,7 +95,7 @@ mod tests {
     fn test_vtx_telemetry_from_bytes() {
         let data: [u8; VtxTelemetry::SERIALIZED_LEN] = [100, 101, 102, 236, 1, 2, 3, 4, 5, 250];
 
-        let vtx_telemetry = VtxTelemetry::from_bytes(&data);
+        let vtx_telemetry = VtxTelemetry::from_bytes(&data).unwrap();
 
         assert_eq!(
             vtx_telemetry,
@@ -127,7 +132,7 @@ mod tests {
         let mut buffer = [0u8; VtxTelemetry::SERIALIZED_LEN];
         vtx_telemetry.to_bytes(&mut buffer);
 
-        let round_trip_vtx_telemetry = VtxTelemetry::from_bytes(&buffer);
+        let round_trip_vtx_telemetry = VtxTelemetry::from_bytes(&buffer).unwrap();
 
         assert_eq!(vtx_telemetry, round_trip_vtx_telemetry);
     }
@@ -149,7 +154,7 @@ mod tests {
 
         let mut buffer = [0u8; VtxTelemetry::SERIALIZED_LEN];
         vtx_telemetry.to_bytes(&mut buffer);
-        let round_trip_vtx_telemetry = VtxTelemetry::from_bytes(&buffer);
+        let round_trip_vtx_telemetry = VtxTelemetry::from_bytes(&buffer).unwrap();
         assert_eq!(vtx_telemetry, round_trip_vtx_telemetry);
     }
 }

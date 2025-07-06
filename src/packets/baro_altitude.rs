@@ -5,6 +5,7 @@
 
 use crate::CrsfParsingError;
 use core::f32::consts::E;
+use libm::{logf, powf};
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -66,12 +67,12 @@ impl BaroAltitude {
     }
 
     pub fn get_vertical_speed_packed(vertical_speed_cm_s: i16) -> i8 {
-        (f32::ln((vertical_speed_cm_s.abs() as f32) / KL + 1.0) / KR
+        (logf((vertical_speed_cm_s.abs() as f32) / KL + 1.0) / KR
             * (vertical_speed_cm_s.signum() as f32)) as i8
     }
 
     pub fn get_vertical_speed_cm_s(&self) -> i16 {
-        ((E.powf((self.vertical_speed_packed.abs() as f32) * KR) - 1.0)
+        ((powf(E, (self.vertical_speed_packed.abs() as f32) * KR) - 1.0)
             * KL
             * (self.vertical_speed_packed.signum() as f32)) as i16
     }

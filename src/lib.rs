@@ -9,12 +9,6 @@ pub use error::{CrsfError, CrsfParsingError};
 pub use packets::{Packet, PacketAddress, PacketType};
 pub use parser::{CrsfParser, RawCrsfPacket};
 
-extern crate std;
-
-
-
-
-
 #[cfg(test)]
 mod tests {
     extern crate std;

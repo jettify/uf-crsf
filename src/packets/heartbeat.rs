@@ -13,7 +13,10 @@ impl Heartbeat {
         buffer[0..2].copy_from_slice(&self.origin_address.to_be_bytes());
     }
 
-    pub fn from_bytes(data: &[u8; Self::SERIALIZED_LEN]) -> Result<Self, CrsfParsingError> {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::SERIALIZED_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         Ok(Self {
             origin_address: i16::from_be_bytes(
                 data[0..2]

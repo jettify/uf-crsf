@@ -26,6 +26,7 @@ pub use flight_mode::FlightMode;
 pub use gps::Gps;
 pub use gps_extended::GpsExtended;
 pub use gps_time::GpsTime;
+pub use heartbeat::Heartbeat;
 pub use link_statistics::LinkStatistics;
 pub use link_statistics_rx::LinkStatisticsRx;
 pub use link_statistics_tx::LinkStatisticsTx;
@@ -34,6 +35,7 @@ pub use rpm::Rpm;
 pub use temp::Temp;
 pub use vario::VariometerSensor;
 pub use voltages::Voltages;
+pub use vtx_telemetry::VtxTelemetry;
 
 use num_enum::TryFromPrimitive;
 
@@ -53,7 +55,9 @@ pub enum Packet {
     Rpm(Rpm),
     Temp(Temp),
     Voltages(Voltages),
+    VtxTelemetry(VtxTelemetry),
     FlightMode(FlightMode),
+    Heartbeat(Heartbeat),
     NotImlemented(PacketType, usize),
 }
 
@@ -87,7 +91,9 @@ impl Packet {
             PacketType::Rpm => Ok(Self::Rpm(Rpm::from_bytes(data)?)),
             PacketType::Temp => Ok(Self::Temp(Temp::from_bytes(data)?)),
             PacketType::Voltages => Ok(Self::Voltages(Voltages::from_bytes(data)?)),
+            PacketType::VtxTelemetry => Ok(Self::VtxTelemetry(VtxTelemetry::from_bytes(data)?)),
             PacketType::Vario => Ok(Self::Vario(VariometerSensor::from_bytes(data)?)),
+            PacketType::Heartbeat => Ok(Self::Heartbeat(Heartbeat::from_bytes(data)?)),
 
             _ => Ok(Packet::NotImlemented(
                 packet_type,
@@ -112,10 +118,9 @@ pub enum PacketType {
     Rpm = 0x0C,
     Temp = 0x0D,
     Voltages = 0x0E,
-    //
+    VtxTelemetry = 0x10,
     Heartbeat = 0x0B,
     LinkStatistics = 0x14,
-
     RcChannelsPacked = 0x16,
     SubsetRcChannelsPacked = 0x17,
     LinkStatisticsRx = 0x1C,

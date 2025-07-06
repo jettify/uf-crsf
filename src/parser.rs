@@ -53,8 +53,7 @@ impl CrsfParser {
             State::AwaitingLenth => {
                 let n = byte as usize + 2;
 
-                if !(constants::CRSF_MIN_PACKET_SIZE..constants::CRSF_MAX_PACKET_SIZE)
-                    .contains(&n)
+                if !(constants::CRSF_MIN_PACKET_SIZE..constants::CRSF_MAX_PACKET_SIZE).contains(&n)
                 {
                     self.reset();
                     return ParseResult::Error(CrsfError::InvalidPacketLength);
@@ -105,10 +104,7 @@ impl CrsfParser {
         }
     }
 
-    pub fn iter_packets_raw<'a, 'b>(
-        &'a mut self,
-        buffer: &'b [u8],
-    ) -> RawPacketIterator<'a, 'b> {
+    pub fn iter_packets_raw<'a, 'b>(&'a mut self, buffer: &'b [u8]) -> RawPacketIterator<'a, 'b> {
         RawPacketIterator {
             parser: self,
             buffer,
