@@ -1,11 +1,6 @@
-//!    uint8_t rssi_db;        // RSSI (dBm * -1)
-//!    uint8_t rssi_percent;   // RSSI in percent
-//!    uint8_t link_quality;   // Package success rate / Link quality (%)
-//!    int8_t  snr;            // SNR (dB)
-//!    uint8_t rf_power_db;    // rf power in dBm
-//!    uint8_t fps;            // rf frames per second (fps / 10)
-//!
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -18,20 +13,23 @@ pub struct LinkStatisticsTx {
     pub fps: u8,
 }
 
-impl LinkStatisticsTx {
-    pub const SERIALIZED_LEN: usize = 6;
+impl CrsfPacket for LinkStatisticsTx {
+    const PACKET_TYPE: PacketType = PacketType::LinkStatisticsTx;
+    const MIN_PAYLOAD_SIZE: usize = 6;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0] = self.rssi_db;
         buffer[1] = self.rssi_percent;
         buffer[2] = self.link_quality;
         buffer[3] = self.snr as u8;
         buffer[4] = self.rf_power_db;
         buffer[5] = self.fps;
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
         Ok(Self {
@@ -60,17 +58,17 @@ mod tests {
             fps: 50,
         };
 
-        let mut buffer = [0u8; LinkStatisticsTx::SERIALIZED_LEN];
-        link_statistics_tx.to_bytes(&mut buffer);
+        let mut buffer = [0u8; LinkStatisticsTx::MIN_PAYLOAD_SIZE];
+        link_statistics_tx.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; LinkStatisticsTx::SERIALIZED_LEN] = [100, 75, 90, 246, 20, 50];
+        let expected_bytes: [u8; LinkStatisticsTx::MIN_PAYLOAD_SIZE] = [100, 75, 90, 246, 20, 50];
 
         assert_eq!(buffer, expected_bytes);
     }
 
     #[test]
     fn test_link_statistics_tx_from_bytes() {
-        let data: [u8; LinkStatisticsTx::SERIALIZED_LEN] = [100, 75, 90, 246, 20, 50];
+        let data: [u8; LinkStatisticsTx::MIN_PAYLOAD_SIZE] = [100, 75, 90, 246, 20, 50];
 
         let link_statistics_tx = LinkStatisticsTx::from_bytes(&data).unwrap();
 
@@ -98,8 +96,8 @@ mod tests {
             fps: 50,
         };
 
-        let mut buffer = [0u8; LinkStatisticsTx::SERIALIZED_LEN];
-        link_statistics_tx.to_bytes(&mut buffer);
+        let mut buffer = [0u8; LinkStatisticsTx::MIN_PAYLOAD_SIZE];
+        link_statistics_tx.to_bytes(&mut buffer).unwrap();
 
         let round_trip_link_statistics_tx = LinkStatisticsTx::from_bytes(&buffer).unwrap();
 
@@ -117,8 +115,8 @@ mod tests {
             fps: 255,
         };
 
-        let mut buffer = [0u8; LinkStatisticsTx::SERIALIZED_LEN];
-        link_statistics_tx.to_bytes(&mut buffer);
+        let mut buffer = [0u8; LinkStatisticsTx::MIN_PAYLOAD_SIZE];
+        link_statistics_tx.to_bytes(&mut buffer).unwrap();
         let round_trip_link_statistics_tx = LinkStatisticsTx::from_bytes(&buffer).unwrap();
         assert_eq!(link_statistics_tx, round_trip_link_statistics_tx);
     }

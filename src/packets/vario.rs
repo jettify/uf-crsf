@@ -1,4 +1,6 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -6,15 +8,18 @@ pub struct VariometerSensor {
     pub v_speed: i16, // Vertical speed cm/s
 }
 
-impl VariometerSensor {
-    pub const SERIALIZED_LEN: usize = 2;
+impl CrsfPacket for VariometerSensor {
+    const PACKET_TYPE: PacketType = PacketType::Vario;
+    const MIN_PAYLOAD_SIZE: usize = 2;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[..2].copy_from_slice(&self.v_speed.to_be_bytes());
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
@@ -37,7 +42,7 @@ mod tests {
         assert_eq!(vario.v_speed, 0);
 
         let mut buffer: [u8; 2] = [0; 2];
-        vario.to_bytes(&mut buffer);
+        vario.to_bytes(&mut buffer).unwrap();
         assert_eq!(&buffer, data);
     }
 }

@@ -39,6 +39,28 @@ pub use vtx_telemetry::VtxTelemetry;
 
 use num_enum::TryFromPrimitive;
 
+/// A trait representing a deserializable CRSF packet.
+pub trait CrsfPacket: Sized {
+    /// The CRSF frame type identifier for this packet.
+    const PACKET_TYPE: PacketType;
+
+    /// The minimum expected length of the packet's payload in bytes.
+    /// For fixed-size packets, this is the same as the payload size.
+    const MIN_PAYLOAD_SIZE: usize;
+
+    /// Creates a packet instance from a payload byte slice.
+    /// The slice is guaranteed to have a length of at least `MIN_PAYLOAD_SIZE`.
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError>;
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError>;
+
+    fn validate_buffer_size(&self, buffer: &[u8]) -> Result<(), CrsfParsingError> {
+        if buffer.len() < Self::MIN_PAYLOAD_SIZE {
+            return Err(CrsfParsingError::BufferOverflow);
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Packet {
     LinkStatistics(LinkStatistics),
@@ -68,33 +90,31 @@ impl Packet {
 
         let data = raw_packet.payload().try_into().unwrap();
         match packet_type {
-            PacketType::LinkStatistics => {
+            LinkStatistics::PACKET_TYPE => {
                 Ok(Self::LinkStatistics(LinkStatistics::from_bytes(data)?))
             }
-            PacketType::LinkStatisticsTx => {
+            LinkStatisticsTx::PACKET_TYPE => {
                 Ok(Self::LinkStatisticsTx(LinkStatisticsTx::from_bytes(data)?))
             }
-            PacketType::LinkStatisticsRx => {
+            LinkStatisticsRx::PACKET_TYPE => {
                 Ok(Self::LinkStatisticsRx(LinkStatisticsRx::from_bytes(data)?))
             }
-            PacketType::RcChannelsPacked => {
+            RcChannelsPacked::PACKET_TYPE => {
                 Ok(Self::RCChannels(RcChannelsPacked::from_bytes(data)?))
             }
-            PacketType::Gps => Ok(Self::Gps(Gps::from_bytes(data)?)),
-            PacketType::GpsTime => Ok(Self::GpsTime(GpsTime::from_bytes(data)?)),
-            PacketType::GpsExtended => Ok(Self::GpsExtended(GpsExtended::from_bytes(data)?)),
-            PacketType::AirSpeed => Ok(Self::AirSpeed(AirSpeed::from_bytes(data)?)),
-            PacketType::BaroAltitude => Ok(Self::BaroAltitude(BaroAltitude::from_bytes(data)?)),
-
-            PacketType::BatterySensor => Ok(Self::Battery(Battery::from_bytes(data)?)),
-            PacketType::FlightMode => Ok(Self::FlightMode(FlightMode::from_bytes(data)?)),
-            PacketType::Rpm => Ok(Self::Rpm(Rpm::from_bytes(data)?)),
-            PacketType::Temp => Ok(Self::Temp(Temp::from_bytes(data)?)),
-            PacketType::Voltages => Ok(Self::Voltages(Voltages::from_bytes(data)?)),
-            PacketType::VtxTelemetry => Ok(Self::VtxTelemetry(VtxTelemetry::from_bytes(data)?)),
-            PacketType::Vario => Ok(Self::Vario(VariometerSensor::from_bytes(data)?)),
-            PacketType::Heartbeat => Ok(Self::Heartbeat(Heartbeat::from_bytes(data)?)),
-
+            Gps::PACKET_TYPE => Ok(Self::Gps(Gps::from_bytes(data)?)),
+            GpsTime::PACKET_TYPE => Ok(Self::GpsTime(GpsTime::from_bytes(data)?)),
+            GpsExtended::PACKET_TYPE => Ok(Self::GpsExtended(GpsExtended::from_bytes(data)?)),
+            AirSpeed::PACKET_TYPE => Ok(Self::AirSpeed(AirSpeed::from_bytes(data)?)),
+            BaroAltitude::PACKET_TYPE => Ok(Self::BaroAltitude(BaroAltitude::from_bytes(data)?)),
+            Battery::PACKET_TYPE => Ok(Self::Battery(Battery::from_bytes(data)?)),
+            FlightMode::PACKET_TYPE => Ok(Self::FlightMode(FlightMode::from_bytes(data)?)),
+            Rpm::PACKET_TYPE => Ok(Self::Rpm(Rpm::from_bytes(data)?)),
+            Temp::PACKET_TYPE => Ok(Self::Temp(Temp::from_bytes(data)?)),
+            Voltages::PACKET_TYPE => Ok(Self::Voltages(Voltages::from_bytes(data)?)),
+            VtxTelemetry::PACKET_TYPE => Ok(Self::VtxTelemetry(VtxTelemetry::from_bytes(data)?)),
+            VariometerSensor::PACKET_TYPE => Ok(Self::Vario(VariometerSensor::from_bytes(data)?)),
+            Heartbeat::PACKET_TYPE => Ok(Self::Heartbeat(Heartbeat::from_bytes(data)?)),
             _ => Ok(Packet::NotImlemented(
                 packet_type,
                 raw_packet.payload().len(),
@@ -179,19 +199,4 @@ pub enum PacketAddress {
     Handset = 0xEA,
     Receiver = 0xEC,
     Transmitter = 0xEE,
-}
-
-/// A trait representing a deserializable CRSF packet.
-pub trait CrsfPacket: Sized {
-    /// The CRSF frame type identifier for this packet.
-    const FRAME_TYPE: u8;
-
-    /// The minimum expected length of the packet's payload in bytes.
-    /// For fixed-size packets, this is the same as the payload size.
-    const MIN_PAYLOAD_SIZE: usize;
-
-    /// Creates a packet instance from a payload byte slice.
-    /// The slice is guaranteed to have a length of at least `MIN_PAYLOAD_SIZE`.
-    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError>;
-    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError>;
 }

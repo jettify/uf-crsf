@@ -11,6 +11,8 @@
 //!  uint8_t     down_link_quality;  // Downlink Package success rate / Link quality (%)
 //!  int8_t      down_snr;           // Downlink SNR (dB)
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -27,10 +29,12 @@ pub struct VtxTelemetry {
     pub down_snr: i8,
 }
 
-impl VtxTelemetry {
-    pub const SERIALIZED_LEN: usize = 10;
+impl CrsfPacket for VtxTelemetry {
+    const PACKET_TYPE: PacketType = PacketType::VtxTelemetry;
+    const MIN_PAYLOAD_SIZE: usize = 10;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0] = self.up_rssi_ant1;
         buffer[1] = self.up_rssi_ant2;
         buffer[2] = self.up_link_quality;
@@ -41,10 +45,11 @@ impl VtxTelemetry {
         buffer[7] = self.down_rssi;
         buffer[8] = self.down_link_quality;
         buffer[9] = self.down_snr as u8;
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             Err(CrsfParsingError::InvalidPayloadLength)
         } else {
             Ok(Self {
@@ -82,10 +87,10 @@ mod tests {
             down_snr: -6,
         };
 
-        let mut buffer = [0u8; VtxTelemetry::SERIALIZED_LEN];
-        vtx_telemetry.to_bytes(&mut buffer);
+        let mut buffer = [0u8; VtxTelemetry::MIN_PAYLOAD_SIZE];
+        vtx_telemetry.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; VtxTelemetry::SERIALIZED_LEN] =
+        let expected_bytes: [u8; VtxTelemetry::MIN_PAYLOAD_SIZE] =
             [100, 101, 102, 236, 1, 2, 3, 4, 5, 250];
 
         assert_eq!(buffer, expected_bytes);
@@ -93,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_vtx_telemetry_from_bytes() {
-        let data: [u8; VtxTelemetry::SERIALIZED_LEN] = [100, 101, 102, 236, 1, 2, 3, 4, 5, 250];
+        let data: [u8; VtxTelemetry::MIN_PAYLOAD_SIZE] = [100, 101, 102, 236, 1, 2, 3, 4, 5, 250];
 
         let vtx_telemetry = VtxTelemetry::from_bytes(&data).unwrap();
 
@@ -129,8 +134,8 @@ mod tests {
             down_snr: -6,
         };
 
-        let mut buffer = [0u8; VtxTelemetry::SERIALIZED_LEN];
-        vtx_telemetry.to_bytes(&mut buffer);
+        let mut buffer = [0u8; VtxTelemetry::MIN_PAYLOAD_SIZE];
+        vtx_telemetry.to_bytes(&mut buffer).unwrap();
 
         let round_trip_vtx_telemetry = VtxTelemetry::from_bytes(&buffer).unwrap();
 
@@ -152,8 +157,8 @@ mod tests {
             down_snr: -128,
         };
 
-        let mut buffer = [0u8; VtxTelemetry::SERIALIZED_LEN];
-        vtx_telemetry.to_bytes(&mut buffer);
+        let mut buffer = [0u8; VtxTelemetry::MIN_PAYLOAD_SIZE];
+        vtx_telemetry.to_bytes(&mut buffer).unwrap();
         let round_trip_vtx_telemetry = VtxTelemetry::from_bytes(&buffer).unwrap();
         assert_eq!(vtx_telemetry, round_trip_vtx_telemetry);
     }

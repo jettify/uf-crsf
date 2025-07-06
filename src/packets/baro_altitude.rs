@@ -4,6 +4,8 @@
 //!     int8_t   vertical_speed_packed; // vertical speed. See description below.
 
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 use core::f32::consts::E;
 use libm::{logf, powf};
 
@@ -14,32 +16,7 @@ pub struct BaroAltitude {
     pub vertical_speed_packed: i8,
 }
 
-const KL: f32 = 100.0; // linearity constant
-const KR: f32 = 0.026; // range constant
-
 impl BaroAltitude {
-    pub const SERIALIZED_LEN: usize = 3;
-
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
-        buffer[0..2].copy_from_slice(&self.altitude_packed.to_be_bytes());
-        buffer[2] = self.vertical_speed_packed as u8;
-    }
-
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
-            return Err(CrsfParsingError::InvalidPayloadLength);
-        }
-
-        Ok(Self {
-            altitude_packed: u16::from_be_bytes(
-                data[0..2]
-                    .try_into()
-                    .map_err(|_| CrsfParsingError::InvalidPayloadLength)?,
-            ),
-            vertical_speed_packed: data[2] as i8,
-        })
-    }
-
     /// MSB = 0: altitude is in decimeters - 10000dm offset (so 0 represents -1000m; 10000 represents 0m (starting altitude); 0x7fff represents 2276.7m);
     /// MSB = 1: altitude is in meters. Without any offset.
     pub fn get_altitude_dm(&self) -> i32 {
@@ -75,6 +52,39 @@ impl BaroAltitude {
         ((powf(E, (self.vertical_speed_packed.abs() as f32) * KR) - 1.0)
             * KL
             * (self.vertical_speed_packed.signum() as f32)) as i16
+    }
+}
+
+const KL: f32 = 100.0; // linearity constant
+const KR: f32 = 0.026; // range constant
+
+impl CrsfPacket for BaroAltitude {
+    const PACKET_TYPE: PacketType = PacketType::BaroAltitude;
+    const MIN_PAYLOAD_SIZE: usize = 3;
+
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        if buffer.len() != Self::MIN_PAYLOAD_SIZE {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+
+        buffer[0..2].copy_from_slice(&self.altitude_packed.to_be_bytes());
+        buffer[2] = self.vertical_speed_packed as u8;
+        Ok(Self::MIN_PAYLOAD_SIZE)
+    }
+
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+
+        Ok(Self {
+            altitude_packed: u16::from_be_bytes(
+                data[0..2]
+                    .try_into()
+                    .map_err(|_| CrsfParsingError::InvalidPayloadLength)?,
+            ),
+            vertical_speed_packed: data[2] as i8,
+        })
     }
 }
 
@@ -160,10 +170,10 @@ mod tests {
             vertical_speed_packed: -50,
         };
 
-        let mut buffer = [0u8; BaroAltitude::SERIALIZED_LEN];
-        baro_altitude.to_bytes(&mut buffer);
+        let mut buffer = [0u8; BaroAltitude::MIN_PAYLOAD_SIZE];
+        baro_altitude.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; BaroAltitude::SERIALIZED_LEN] = [
+        let expected_bytes: [u8; BaroAltitude::MIN_PAYLOAD_SIZE] = [
             0x30, 0x39, // altitude_packed: 12345
             0xce, // vertical_speed_packed: -50
         ];
@@ -173,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_baro_altitude_from_bytes() {
-        let data: [u8; BaroAltitude::SERIALIZED_LEN] = [
+        let data: [u8; BaroAltitude::MIN_PAYLOAD_SIZE] = [
             0x30, 0x39, // altitude_packed: 12345
             0xce, // vertical_speed_packed: -50
         ];
@@ -196,8 +206,8 @@ mod tests {
             vertical_speed_packed: -50,
         };
 
-        let mut buffer = [0u8; BaroAltitude::SERIALIZED_LEN];
-        baro_altitude.to_bytes(&mut buffer);
+        let mut buffer = [0u8; BaroAltitude::MIN_PAYLOAD_SIZE];
+        baro_altitude.to_bytes(&mut buffer).unwrap();
 
         let round_trip_baro_altitude = BaroAltitude::from_bytes(&buffer).unwrap();
 
@@ -211,8 +221,8 @@ mod tests {
             vertical_speed_packed: -128,
         };
 
-        let mut buffer = [0u8; BaroAltitude::SERIALIZED_LEN];
-        baro_altitude.to_bytes(&mut buffer);
+        let mut buffer = [0u8; BaroAltitude::MIN_PAYLOAD_SIZE];
+        baro_altitude.to_bytes(&mut buffer).unwrap();
         let round_trip_baro_altitude = BaroAltitude::from_bytes(&buffer).unwrap();
         assert_eq!(baro_altitude, round_trip_baro_altitude);
     }

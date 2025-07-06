@@ -1,4 +1,6 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 //    int16_t voltage;        // Voltage (LSB = 10 µV)
 //    int16_t current;        // Current (LSB = 10 µA)
@@ -14,18 +16,21 @@ pub struct Battery {
     pub remaining: u8,
 }
 
-impl Battery {
-    pub const SERIALIZED_LEN: usize = 8;
+impl CrsfPacket for Battery {
+    const PACKET_TYPE: PacketType = PacketType::BatterySensor;
+    const MIN_PAYLOAD_SIZE: usize = 8;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0..2].copy_from_slice(&self.voltage.to_be_bytes());
         buffer[2..4].copy_from_slice(&self.current.to_be_bytes());
         buffer[4..7].copy_from_slice(&self.capacity_used.to_be_bytes()[1..]); // Take only the last 3 bytes
         buffer[7] = self.remaining;
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
         let mut capacity_bytes: [u8; 4] = [0; 4];
@@ -61,10 +66,10 @@ mod tests {
             remaining: 75,
         };
 
-        let mut buffer = [0u8; Battery::SERIALIZED_LEN];
-        battery.to_bytes(&mut buffer);
+        let mut buffer = [0u8; Battery::MIN_PAYLOAD_SIZE];
+        battery.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; Battery::SERIALIZED_LEN] = [
+        let expected_bytes: [u8; Battery::MIN_PAYLOAD_SIZE] = [
             0x30, 0x39, // Voltage: 12345
             0xfc, 0x18, // Current: -1000
             0x12, 0xd6, 0x87, // Capacity Used: 1234567
@@ -76,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_battery_from_bytes() {
-        let data: [u8; Battery::SERIALIZED_LEN] = [
+        let data: [u8; Battery::MIN_PAYLOAD_SIZE] = [
             0x30, 0x39, // Voltage: 12345
             0xfc, 0x18, // Current: -1000
             0x12, 0xd6, 0x87, // Capacity Used: 1234567
@@ -105,8 +110,8 @@ mod tests {
             remaining: 75,
         };
 
-        let mut buffer = [0u8; Battery::SERIALIZED_LEN];
-        battery.to_bytes(&mut buffer);
+        let mut buffer = [0u8; Battery::MIN_PAYLOAD_SIZE];
+        battery.to_bytes(&mut buffer).unwrap();
 
         let round_trip_battery = Battery::from_bytes(&buffer).unwrap();
 
@@ -122,8 +127,8 @@ mod tests {
             remaining: 255,
         };
 
-        let mut buffer = [0u8; Battery::SERIALIZED_LEN];
-        battery.to_bytes(&mut buffer);
+        let mut buffer = [0u8; Battery::MIN_PAYLOAD_SIZE];
+        battery.to_bytes(&mut buffer).unwrap();
         let round_trip_battery = Battery::from_bytes(&buffer).unwrap();
         assert_eq!(battery, round_trip_battery);
     }

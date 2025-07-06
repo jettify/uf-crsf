@@ -1,17 +1,20 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 use heapless::Vec;
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Voltages {
     pub voltage_source_id: u8,
     pub voltage_values: Vec<u16, 29>,
 }
 
-impl Voltages {
-    pub const MAX_LEN: usize = 1 + 29 * 2;
+impl CrsfPacket for Voltages {
+    const PACKET_TYPE: PacketType = PacketType::Voltages;
+    const MIN_PAYLOAD_SIZE: usize = 3;
 
-    pub fn to_bytes(&self, buffer: &mut [u8]) -> usize {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0] = self.voltage_source_id;
         let mut i = 1;
         for &voltage in self.voltage_values.iter() {
@@ -19,11 +22,11 @@ impl Voltages {
             buffer[i..i + 2].copy_from_slice(&bytes);
             i += 2;
         }
-        i
+        Ok(i)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() > Self::MAX_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() < Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
         let voltage_source_id = data[0];
@@ -56,8 +59,8 @@ mod tests {
             voltage_values,
         };
 
-        let mut buffer = [0u8; Voltages::MAX_LEN];
-        let len = voltages.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 60];
+        let len = voltages.to_bytes(&mut buffer).unwrap();
 
         let expected_bytes: [u8; 5] = [
             0, // Source ID
@@ -96,8 +99,8 @@ mod tests {
             voltage_values,
         };
 
-        let mut buffer = [0u8; Voltages::MAX_LEN];
-        let len = voltages.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 60];
+        let len = voltages.to_bytes(&mut buffer).unwrap();
 
         let round_trip_voltages = Voltages::from_bytes(&buffer[..len]).unwrap();
 
@@ -114,8 +117,8 @@ mod tests {
             voltage_values,
         };
 
-        let mut buffer = [0u8; Voltages::MAX_LEN];
-        let len = voltages.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 29 * 2];
+        let len = voltages.to_bytes(&mut buffer).unwrap();
         let round_trip_voltages = Voltages::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(voltages, round_trip_voltages);
     }

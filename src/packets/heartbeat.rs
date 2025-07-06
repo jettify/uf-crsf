@@ -1,4 +1,6 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -6,15 +8,17 @@ pub struct Heartbeat {
     pub origin_address: i16,
 }
 
-impl Heartbeat {
-    pub const SERIALIZED_LEN: usize = 2;
+impl CrsfPacket for Heartbeat {
+    const MIN_PAYLOAD_SIZE: usize = 2;
+    const PACKET_TYPE: PacketType = PacketType::Heartbeat;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         buffer[0..2].copy_from_slice(&self.origin_address.to_be_bytes());
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
         Ok(Self {
@@ -36,14 +40,14 @@ mod tests {
         let heatbeat = Heartbeat {
             origin_address: 1234,
         };
-        let mut buffer = [0u8; Heartbeat::SERIALIZED_LEN];
-        heatbeat.to_bytes(&mut buffer);
+        let mut buffer = [0u8; Heartbeat::MIN_PAYLOAD_SIZE];
+        heatbeat.to_bytes(&mut buffer).unwrap();
         assert_eq!(buffer, [0x04, 0xD2]);
     }
 
     #[test]
     fn test_heatbeat_from_bytes() {
-        let data: [u8; Heartbeat::SERIALIZED_LEN] = [0x04, 0xD2];
+        let data: [u8; Heartbeat::MIN_PAYLOAD_SIZE] = [0x04, 0xD2];
         let heatbeat = Heartbeat::from_bytes(&data).unwrap();
         assert_eq!(heatbeat.origin_address, 1234);
     }
@@ -53,8 +57,8 @@ mod tests {
         let heatbeat = Heartbeat {
             origin_address: 5678,
         };
-        let mut buffer = [0u8; Heartbeat::SERIALIZED_LEN];
-        heatbeat.to_bytes(&mut buffer);
+        let mut buffer = [0u8; Heartbeat::MIN_PAYLOAD_SIZE];
+        heatbeat.to_bytes(&mut buffer).unwrap();
         let round_trip_heatbeat = Heartbeat::from_bytes(&buffer).unwrap();
         assert_eq!(heatbeat, round_trip_heatbeat);
     }

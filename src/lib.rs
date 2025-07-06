@@ -15,7 +15,7 @@ mod tests {
 
     use super::*;
     use crate::parser::ParseResult;
-    use packets::{LinkStatistics, RcChannelsPacked};
+    use packets::{CrsfPacket, LinkStatistics, RcChannelsPacked};
 
     #[test]
     fn test_construction() {
@@ -34,7 +34,7 @@ mod tests {
         };
         assert_eq!(raw_packet.len(), raw_bytes.len());
 
-        assert_eq!(raw_packet.payload().len(), LinkStatistics::SERIALIZED_LEN);
+        assert_eq!(raw_packet.payload().len(), LinkStatistics::MIN_PAYLOAD_SIZE);
         assert_eq!(
             raw_packet.raw_packet_type(),
             PacketType::LinkStatistics as u8

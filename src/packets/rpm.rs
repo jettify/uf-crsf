@@ -1,17 +1,19 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 use heapless::Vec;
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Rpm {
     pub rpm_source_id: u8,
     pub rpm_values: Vec<i32, 19>,
 }
 
-impl Rpm {
-    pub const MAX_LEN: usize = 1 + 19 * 3;
+impl CrsfPacket for Rpm {
+    const PACKET_TYPE: PacketType = PacketType::Rpm;
+    const MIN_PAYLOAD_SIZE: usize = 3;
 
-    pub fn to_bytes(&self, buffer: &mut [u8]) -> usize {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         buffer[0] = self.rpm_source_id;
         let mut i = 1;
         for &rpm in self.rpm_values.iter() {
@@ -19,11 +21,11 @@ impl Rpm {
             buffer[i..i + 3].copy_from_slice(&bytes[1..4]);
             i += 3;
         }
-        i
+        Ok(i)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() > Self::MAX_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() < Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
         let rpm_source_id = data[0];
@@ -59,8 +61,8 @@ mod tests {
             rpm_values,
         };
 
-        let mut buffer = [0u8; Rpm::MAX_LEN];
-        let len = rpm.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 60];
+        let len = rpm.to_bytes(&mut buffer).unwrap();
 
         let expected_bytes: [u8; 7] = [
             1, // Source ID
@@ -99,8 +101,8 @@ mod tests {
             rpm_values,
         };
 
-        let mut buffer = [0u8; Rpm::MAX_LEN];
-        let len = rpm.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 60];
+        let len = rpm.to_bytes(&mut buffer).unwrap();
 
         let round_trip_rpm = Rpm::from_bytes(&buffer[..len]).unwrap();
 
@@ -118,8 +120,8 @@ mod tests {
             rpm_values,
         };
 
-        let mut buffer = [0u8; Rpm::MAX_LEN];
-        let len = rpm.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 60];
+        let len = rpm.to_bytes(&mut buffer).unwrap();
         let round_trip_rpm = Rpm::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(rpm, round_trip_rpm);
     }

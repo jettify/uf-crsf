@@ -1,4 +1,6 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -15,10 +17,12 @@ pub struct LinkStatistics {
     pub downlink_snr: i8,
 }
 
-impl LinkStatistics {
-    pub const SERIALIZED_LEN: usize = 10;
+impl CrsfPacket for LinkStatistics {
+    const PACKET_TYPE: PacketType = PacketType::LinkStatistics;
+    const MIN_PAYLOAD_SIZE: usize = 10;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0] = self.uplink_rssi_1;
         buffer[1] = self.uplink_rssi_2;
         buffer[2] = self.uplink_link_quality;
@@ -29,10 +33,11 @@ impl LinkStatistics {
         buffer[7] = self.downlink_rssi;
         buffer[8] = self.downlink_link_quality;
         buffer[9] = self.downlink_snr as u8;
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             Err(CrsfParsingError::InvalidPayloadLength)
         } else {
             Ok(Self {
@@ -60,7 +65,7 @@ mod tests {
         let data = &raw_bytes[3..13];
         let ls = LinkStatistics::from_bytes(data).unwrap();
         let mut buffer: [u8; 10] = [0; 10];
-        ls.to_bytes(&mut buffer);
+        ls.to_bytes(&mut buffer).unwrap();
         assert_eq!(ls.uplink_rssi_1, 16);
         assert_eq!(&buffer, data);
     }

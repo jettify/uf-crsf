@@ -4,6 +4,7 @@ pub enum CrsfParsingError {
     PacketNotImlemented(u8),
     InvalidPayloadLength,
     InvalidPayload,
+    BufferOverflow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

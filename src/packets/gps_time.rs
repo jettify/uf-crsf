@@ -9,6 +9,9 @@
 //! uint16_t millisecond;
 //!
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GpsTime {
@@ -21,10 +24,12 @@ pub struct GpsTime {
     pub millisecond: u16,
 }
 
-impl GpsTime {
-    pub const SERIALIZED_LEN: usize = 9;
+impl CrsfPacket for GpsTime {
+    const PACKET_TYPE: PacketType = PacketType::GpsTime;
+    const MIN_PAYLOAD_SIZE: usize = 9;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0..2].copy_from_slice(&self.year.to_be_bytes());
         buffer[2] = self.month;
         buffer[3] = self.day;
@@ -32,10 +37,11 @@ impl GpsTime {
         buffer[5] = self.minute;
         buffer[6] = self.second;
         buffer[7..9].copy_from_slice(&self.millisecond.to_be_bytes());
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
@@ -67,10 +73,10 @@ mod tests {
             millisecond: 789,
         };
 
-        let mut buffer = [0u8; GpsTime::SERIALIZED_LEN];
-        gps_time.to_bytes(&mut buffer);
+        let mut buffer = [0u8; GpsTime::MIN_PAYLOAD_SIZE];
+        gps_time.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; GpsTime::SERIALIZED_LEN] = [
+        let expected_bytes: [u8; GpsTime::MIN_PAYLOAD_SIZE] = [
             0x07, 0xe8, // Year: 2024
             0x0a, // Month: 10
             0x1b, // Day: 27
@@ -85,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_gps_time_from_bytes() {
-        let data: [u8; GpsTime::SERIALIZED_LEN] = [
+        let data: [u8; GpsTime::MIN_PAYLOAD_SIZE] = [
             0x07, 0xe8, // Year: 2024
             0x0a, // Month: 10
             0x1b, // Day: 27
@@ -123,8 +129,8 @@ mod tests {
             millisecond: 789,
         };
 
-        let mut buffer = [0u8; GpsTime::SERIALIZED_LEN];
-        gps_time.to_bytes(&mut buffer);
+        let mut buffer = [0u8; GpsTime::MIN_PAYLOAD_SIZE];
+        gps_time.to_bytes(&mut buffer).unwrap();
 
         let round_trip_gps_time = GpsTime::from_bytes(&buffer).unwrap();
 
@@ -143,8 +149,8 @@ mod tests {
             millisecond: 65535,
         };
 
-        let mut buffer = [0u8; GpsTime::SERIALIZED_LEN];
-        gps_time.to_bytes(&mut buffer);
+        let mut buffer = [0u8; GpsTime::MIN_PAYLOAD_SIZE];
+        gps_time.to_bytes(&mut buffer).unwrap();
         let round_trip_gps_time = GpsTime::from_bytes(&buffer).unwrap();
         assert_eq!(gps_time, round_trip_gps_time);
     }

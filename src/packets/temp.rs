@@ -1,18 +1,20 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 use heapless::Vec;
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Temp {
     pub temp_source_id: u8,
     pub temperatures: Vec<i16, 20>,
 }
 
-impl Temp {
-    pub const MAX_LEN: usize = 1 + 20 * 2;
+impl CrsfPacket for Temp {
+    const PACKET_TYPE: PacketType = PacketType::Temp;
+    const MIN_PAYLOAD_SIZE: usize = 3;
 
-    pub fn to_bytes(&self, buffer: &mut [u8]) -> usize {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         buffer[0] = self.temp_source_id;
         let mut i = 1;
         for &temp in self.temperatures.iter() {
@@ -20,11 +22,11 @@ impl Temp {
             buffer[i..i + 2].copy_from_slice(&bytes);
             i += 2;
         }
-        i
+        Ok(i)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() >= Self::MAX_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() < Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
@@ -58,8 +60,8 @@ mod tests {
             temperatures,
         };
 
-        let mut buffer = [0u8; Temp::MAX_LEN];
-        let len = temp.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 60];
+        let len = temp.to_bytes(&mut buffer).unwrap();
 
         let expected_bytes: [u8; 5] = [
             1, // Source ID
@@ -98,8 +100,8 @@ mod tests {
             temperatures,
         };
 
-        let mut buffer = [0u8; Temp::MAX_LEN];
-        let len = temp.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 60];
+        let len = temp.to_bytes(&mut buffer).unwrap();
 
         let round_trip_temp = Temp::from_bytes(&buffer[..len]).unwrap();
 
@@ -117,8 +119,8 @@ mod tests {
             temperatures,
         };
 
-        let mut buffer = [0u8; Temp::MAX_LEN];
-        let len = temp.to_bytes(&mut buffer);
+        let mut buffer = [0u8; 60];
+        let len = temp.to_bytes(&mut buffer).unwrap();
         let round_trip_temp = Temp::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(temp, round_trip_temp);
     }

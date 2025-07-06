@@ -1,4 +1,6 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -11,20 +13,24 @@ pub struct Gps {
     pub satellites: u8,   // # of sats in view
 }
 
-impl Gps {
-    pub const SERIALIZED_LEN: usize = 16;
+impl CrsfPacket for Gps {
+    const PACKET_TYPE: PacketType = PacketType::Gps;
+    const MIN_PAYLOAD_SIZE: usize = 16;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[..4].copy_from_slice(&self.latitude.to_be_bytes());
         buffer[4..8].copy_from_slice(&self.longitude.to_be_bytes());
         buffer[8..10].copy_from_slice(&self.groundspeed.to_be_bytes());
         buffer[10..12].copy_from_slice(&self.heading.to_be_bytes());
         buffer[12..14].copy_from_slice(&self.altitude.to_be_bytes());
         buffer[15] = self.satellites;
+
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
@@ -57,7 +63,7 @@ mod tests {
         assert_eq!(gps.satellites, 0);
 
         let mut buffer: [u8; 16] = [0; 16];
-        gps.to_bytes(&mut buffer);
+        gps.to_bytes(&mut buffer).unwrap();
         assert_eq!(&buffer, data);
     }
 }

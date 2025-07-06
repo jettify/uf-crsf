@@ -11,6 +11,8 @@
 //    uint8_t hDOP;           // Horizontal dilution of precision,Dimensionless in nits of.1.
 //    uint8_t vDOP;           // vertical dilution of precision, Dimensionless in nits of .1.
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -29,10 +31,12 @@ pub struct GpsExtended {
     pub v_dop: u8,
 }
 
-impl GpsExtended {
-    pub const SERIALIZED_LEN: usize = 20;
+impl CrsfPacket for GpsExtended {
+    const PACKET_TYPE: PacketType = PacketType::GpsExtended;
+    const MIN_PAYLOAD_SIZE: usize = 20;
 
-    pub fn to_bytes(&self, buffer: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0] = self.fix_type;
         buffer[1..3].copy_from_slice(&self.n_speed.to_be_bytes());
         buffer[3..5].copy_from_slice(&self.e_speed.to_be_bytes());
@@ -45,10 +49,11 @@ impl GpsExtended {
         buffer[17] = self.reserved;
         buffer[18] = self.h_dop;
         buffer[19] = self.v_dop;
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::SERIALIZED_LEN {
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
@@ -90,10 +95,10 @@ mod tests {
             v_dop: 12,
         };
 
-        let mut buffer = [0u8; GpsExtended::SERIALIZED_LEN];
-        gps_extended.to_bytes(&mut buffer);
+        let mut buffer = [0u8; GpsExtended::MIN_PAYLOAD_SIZE];
+        gps_extended.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; GpsExtended::SERIALIZED_LEN] = [
+        let expected_bytes: [u8; GpsExtended::MIN_PAYLOAD_SIZE] = [
             1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0, 9, 10, 11, 12,
         ];
 
@@ -102,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_gps_extended_from_bytes() {
-        let data: [u8; GpsExtended::SERIALIZED_LEN] = [
+        let data: [u8; GpsExtended::MIN_PAYLOAD_SIZE] = [
             1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0, 9, 10, 11, 12,
         ];
 
@@ -144,8 +149,8 @@ mod tests {
             v_dop: 12,
         };
 
-        let mut buffer = [0u8; GpsExtended::SERIALIZED_LEN];
-        gps_extended.to_bytes(&mut buffer);
+        let mut buffer = [0u8; GpsExtended::MIN_PAYLOAD_SIZE];
+        gps_extended.to_bytes(&mut buffer).unwrap();
 
         let round_trip_gps_extended = GpsExtended::from_bytes(&buffer).unwrap();
 
@@ -169,8 +174,8 @@ mod tests {
             v_dop: 50,
         };
 
-        let mut buffer = [0u8; GpsExtended::SERIALIZED_LEN];
-        gps_extended.to_bytes(&mut buffer);
+        let mut buffer = [0u8; GpsExtended::MIN_PAYLOAD_SIZE];
+        gps_extended.to_bytes(&mut buffer).unwrap();
         let round_trip_gps_extended = GpsExtended::from_bytes(&buffer).unwrap();
         assert_eq!(gps_extended, round_trip_gps_extended);
     }

@@ -1,42 +1,47 @@
 use crate::CrsfParsingError;
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RcChannelsPacked(pub [u16; 16]);
 
-impl RcChannelsPacked {
-    pub const SERIALIZED_LEN: usize = 22;
+impl CrsfPacket for RcChannelsPacked {
+    const PACKET_TYPE: PacketType = PacketType::RcChannelsPacked;
+    const MIN_PAYLOAD_SIZE: usize = 22;
 
-    pub fn to_bytes(&self, data: &mut [u8; Self::SERIALIZED_LEN]) {
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         let ch = &self.0;
-        data[0] = (ch[0]) as u8;
-        data[1] = ((ch[0] >> 8) | (ch[1] << 3)) as u8;
-        data[2] = ((ch[1] >> 5) | (ch[2] << 6)) as u8;
-        data[3] = (ch[2] >> 2) as u8;
-        data[4] = ((ch[2] >> 10) | (ch[3] << 1)) as u8;
-        data[5] = ((ch[3] >> 7) | (ch[4] << 4)) as u8;
-        data[6] = ((ch[4] >> 4) | (ch[5] << 7)) as u8;
-        data[7] = (ch[5] >> 1) as u8;
-        data[8] = ((ch[5] >> 9) | (ch[6] << 2)) as u8;
-        data[9] = ((ch[6] >> 6) | (ch[7] << 5)) as u8;
-        data[10] = (ch[7] >> 3) as u8;
-        data[11] = ch[8] as u8;
-        data[12] = ((ch[8] >> 8) | (ch[9] << 3)) as u8;
-        data[13] = ((ch[9] >> 5) | (ch[10] << 6)) as u8;
-        data[14] = (ch[10] >> 2) as u8;
-        data[15] = ((ch[10] >> 10) | (ch[11] << 1)) as u8;
-        data[16] = ((ch[11] >> 7) | (ch[12] << 4)) as u8;
-        data[17] = ((ch[12] >> 4) | (ch[13] << 7)) as u8;
-        data[18] = (ch[13] >> 1) as u8;
-        data[19] = ((ch[13] >> 9) | (ch[14] << 2)) as u8;
-        data[20] = ((ch[14] >> 6) | (ch[15] << 5)) as u8;
-        data[21] = (ch[15] >> 3) as u8;
+        buffer[0] = (ch[0]) as u8;
+        buffer[1] = ((ch[0] >> 8) | (ch[1] << 3)) as u8;
+        buffer[2] = ((ch[1] >> 5) | (ch[2] << 6)) as u8;
+        buffer[3] = (ch[2] >> 2) as u8;
+        buffer[4] = ((ch[2] >> 10) | (ch[3] << 1)) as u8;
+        buffer[5] = ((ch[3] >> 7) | (ch[4] << 4)) as u8;
+        buffer[6] = ((ch[4] >> 4) | (ch[5] << 7)) as u8;
+        buffer[7] = (ch[5] >> 1) as u8;
+        buffer[8] = ((ch[5] >> 9) | (ch[6] << 2)) as u8;
+        buffer[9] = ((ch[6] >> 6) | (ch[7] << 5)) as u8;
+        buffer[10] = (ch[7] >> 3) as u8;
+        buffer[11] = ch[8] as u8;
+        buffer[12] = ((ch[8] >> 8) | (ch[9] << 3)) as u8;
+        buffer[13] = ((ch[9] >> 5) | (ch[10] << 6)) as u8;
+        buffer[14] = (ch[10] >> 2) as u8;
+        buffer[15] = ((ch[10] >> 10) | (ch[11] << 1)) as u8;
+        buffer[16] = ((ch[11] >> 7) | (ch[12] << 4)) as u8;
+        buffer[17] = ((ch[12] >> 4) | (ch[13] << 7)) as u8;
+        buffer[18] = (ch[13] >> 1) as u8;
+        buffer[19] = ((ch[13] >> 9) | (ch[14] << 2)) as u8;
+        buffer[20] = ((ch[14] >> 6) | (ch[15] << 5)) as u8;
+        buffer[21] = (ch[15] >> 3) as u8;
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        let data: [u16; Self::SERIALIZED_LEN] = core::array::from_fn(|i| data[i] as u16);
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        let data: [u16; Self::MIN_PAYLOAD_SIZE] = core::array::from_fn(|i| data[i] as u16);
 
-        if data.len() != Self::SERIALIZED_LEN {
+        if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
@@ -73,7 +78,8 @@ mod tests {
         let data = &raw_bytes[3..25];
         let rc = RcChannelsPacked::from_bytes(data).unwrap();
         let mut buffer: [u8; 22] = [0; 22];
-        rc.to_bytes(&mut buffer);
+        let consumed = rc.to_bytes(&mut buffer).unwrap();
+        assert_eq!(consumed, 22);
         assert_eq!(&buffer, data);
     }
 }
