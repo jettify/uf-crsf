@@ -1,4 +1,5 @@
-use crate::CrsfParsingError;
+use crate::error::CrsfParsingError;
+use crate::parser::RawCrsfPacket;
 
 mod airspeed;
 mod baro_altitude;
@@ -35,42 +36,6 @@ pub use vario::VariometerSensor;
 pub use voltages::Voltages;
 
 use num_enum::TryFromPrimitive;
-
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct RawCrsfPacket<'a> {
-    bytes: &'a [u8],
-}
-
-impl<'a> RawCrsfPacket<'a> {
-    pub fn new(bytes: &'a [u8]) -> Option<Self> {
-        if bytes.len() >= 4 {
-            Some(Self { bytes })
-        } else {
-            None
-        }
-    }
-
-    pub fn dst_addr(&self) -> u8 {
-        self.bytes[0]
-    }
-    pub fn raw_packet_type(&self) -> u8 {
-        // XXX
-        self.bytes[2]
-    }
-
-    pub fn payload(&self) -> &[u8] {
-        // XXX
-        &self.bytes[3..self.bytes.len() - 1]
-    }
-    pub fn crc(&self) -> u8 {
-        *self.bytes.last().unwrap()
-    }
-
-    pub fn len(&self) -> usize {
-        self.bytes.len()
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Packet {
@@ -209,4 +174,19 @@ pub enum PacketAddress {
     Handset = 0xEA,
     Receiver = 0xEC,
     Transmitter = 0xEE,
+}
+
+/// A trait representing a deserializable CRSF packet.
+pub trait CrsfPacket: Sized {
+    /// The CRSF frame type identifier for this packet.
+    const FRAME_TYPE: u8;
+
+    /// The minimum expected length of the packet's payload in bytes.
+    /// For fixed-size packets, this is the same as the payload size.
+    const MIN_PAYLOAD_SIZE: usize;
+
+    /// Creates a packet instance from a payload byte slice.
+    /// The slice is guaranteed to have a length of at least `MIN_PAYLOAD_SIZE`.
+    fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError>;
+    fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError>;
 }

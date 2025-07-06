@@ -22,7 +22,10 @@ fn main() {
     let path = env::args().nth(1).unwrap_or_else(|| {
         const DEFAULT_PORT: &str = "/dev/tty.usbmodem00000000001B1";
         if ports.iter().any(|p| p.port_name == DEFAULT_PORT) {
-            println!("No serial port specified. Using default port: {}", DEFAULT_PORT);
+            println!(
+                "No serial port specified. Using default port: {}",
+                DEFAULT_PORT
+            );
             DEFAULT_PORT.to_string()
         } else {
             println!("No serial port specified. Available ports:");
