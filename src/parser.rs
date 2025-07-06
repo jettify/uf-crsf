@@ -170,6 +170,10 @@ impl<'a> RawCrsfPacket<'a> {
     pub fn len(&self) -> usize {
         self.bytes.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
 }
 
 pub struct RawPacketIterator<'a, 'b> {
@@ -178,7 +182,7 @@ pub struct RawPacketIterator<'a, 'b> {
     pos: usize,
 }
 
-impl<'a, 'b> Iterator for RawPacketIterator<'a, 'b> {
+impl<'b> Iterator for RawPacketIterator<'_, 'b> {
     type Item = Result<&'b [u8], CrsfError>;
 
     fn next(&mut self) -> Option<Self::Item> {

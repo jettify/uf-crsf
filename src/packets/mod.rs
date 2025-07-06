@@ -88,7 +88,7 @@ impl Packet {
         let packet_type = PacketType::try_from_primitive(raw_packet.raw_packet_type())
             .map_err(|_| CrsfParsingError::UnexpectedPacketType(raw_packet.raw_packet_type()))?;
 
-        let data = raw_packet.payload().try_into().unwrap();
+        let data = raw_packet.payload();
         match packet_type {
             LinkStatistics::PACKET_TYPE => {
                 Ok(Self::LinkStatistics(LinkStatistics::from_bytes(data)?))
