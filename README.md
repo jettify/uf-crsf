@@ -1,5 +1,6 @@
 # uf-crsf
 
+[![Rust](https://github.com/jettify/uf-crsf/actions/workflows/CI.yml/badge.svg)](https://github.com/jettify/uf-crsf/actions/workflows/CI.yml)
 Protocol parser for `no_std` environment for TBS Crossfire used in
 RC links like ExpresssLRS.
 
@@ -55,3 +56,8 @@ RC links like ExpresssLRS.
 | `0x81`,`0x82`  | `mLRS Reserved`                    | [] |
 | `0xAA`         | `CRSF MAVLink Envelope`            | [] |
 | `0xAC`         | `CRSF MAVLink System Status Sensor` | [] |
+
+## Protocol Specification
+
+1. <https://github.com/tbs-fpv/tbs-crsf-spec>
+2. <https://github.com/crsf-wg/crsf>

@@ -15,7 +15,7 @@ impl CrsfPacket for AirSpeed {
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         self.validate_buffer_size(buffer)?;
         buffer[0..2].copy_from_slice(&self.speed.to_be_bytes());
-        return Ok(Self::MIN_PAYLOAD_SIZE);
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
