@@ -10,9 +10,9 @@
 //!  uint8_t     down_rssi;          // Downlink RSSI (dBm * -1)
 //!  uint8_t     down_link_quality;  // Downlink Package success rate / Link quality (%)
 //!  int8_t      down_snr;           // Downlink SNR (dB)
-use crate::CrsfParsingError;
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
+use crate::CrsfParsingError;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

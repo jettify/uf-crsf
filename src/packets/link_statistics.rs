@@ -1,6 +1,6 @@
-use crate::CrsfParsingError;
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
+use crate::CrsfParsingError;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -59,14 +59,96 @@ impl CrsfPacket for LinkStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn test_basic_link_stat() {
-        let raw_bytes: [u8; 14] = [0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252];
-        let data = &raw_bytes[3..13];
-        let ls = LinkStatistics::from_bytes(data).unwrap();
-        let mut buffer: [u8; 10] = [0; 10];
-        ls.to_bytes(&mut buffer).unwrap();
-        assert_eq!(ls.uplink_rssi_1, 16);
-        assert_eq!(&buffer, data);
+    fn test_link_statistics_to_bytes() {
+        let link_statistics = LinkStatistics {
+            uplink_rssi_1: 100,
+            uplink_rssi_2: 75,
+            uplink_link_quality: 90,
+            uplink_snr: -10,
+            active_antenna: 1,
+            rf_mode: 2,
+            uplink_tx_power: 20,
+            downlink_rssi: 110,
+            downlink_link_quality: 80,
+            downlink_snr: -5,
+        };
+
+        let mut buffer = [0u8; LinkStatistics::MIN_PAYLOAD_SIZE];
+        let _ = link_statistics.to_bytes(&mut buffer);
+
+        let expected_bytes: [u8; LinkStatistics::MIN_PAYLOAD_SIZE] =
+            [100, 75, 90, 246, 1, 2, 20, 110, 80, 251];
+
+        assert_eq!(buffer, expected_bytes);
+    }
+
+    #[test]
+    fn test_link_statistics_from_bytes() {
+        let data: [u8; LinkStatistics::MIN_PAYLOAD_SIZE] =
+            [100, 75, 90, 246, 1, 2, 20, 110, 80, 251];
+
+        let link_statistics = LinkStatistics::from_bytes(&data).unwrap();
+
+        assert_eq!(
+            link_statistics,
+            LinkStatistics {
+                uplink_rssi_1: 100,
+                uplink_rssi_2: 75,
+                uplink_link_quality: 90,
+                uplink_snr: -10,
+                active_antenna: 1,
+                rf_mode: 2,
+                uplink_tx_power: 20,
+                downlink_rssi: 110,
+                downlink_link_quality: 80,
+                downlink_snr: -5,
+            }
+        );
+    }
+
+    #[test]
+    fn test_link_statistics_round_trip() {
+        let link_statistics = LinkStatistics {
+            uplink_rssi_1: 100,
+            uplink_rssi_2: 75,
+            uplink_link_quality: 90,
+            uplink_snr: -10,
+            active_antenna: 1,
+            rf_mode: 2,
+            uplink_tx_power: 20,
+            downlink_rssi: 110,
+            downlink_link_quality: 80,
+            downlink_snr: -5,
+        };
+
+        let mut buffer = [0u8; LinkStatistics::MIN_PAYLOAD_SIZE];
+        link_statistics.to_bytes(&mut buffer).unwrap();
+
+        let round_trip_link_statistics = LinkStatistics::from_bytes(&buffer).unwrap();
+
+        assert_eq!(link_statistics, round_trip_link_statistics);
+    }
+
+    #[test]
+    fn test_edge_cases() {
+        let link_statistics = LinkStatistics {
+            uplink_rssi_1: 255,
+            uplink_rssi_2: 100,
+            uplink_link_quality: 100,
+            uplink_snr: -128,
+            active_antenna: 3,
+            rf_mode: 4,
+            uplink_tx_power: 50,
+            downlink_rssi: 200,
+            downlink_link_quality: 90,
+            downlink_snr: 127,
+        };
+
+        let mut buffer = [0u8; LinkStatistics::MIN_PAYLOAD_SIZE];
+        link_statistics.to_bytes(&mut buffer).unwrap();
+        let round_trip_link_statistics = LinkStatistics::from_bytes(&buffer).unwrap();
+        assert_eq!(link_statistics, round_trip_link_statistics);
     }
 }

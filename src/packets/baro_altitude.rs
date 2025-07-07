@@ -3,9 +3,9 @@
 //!                                     // See description below.
 //!     int8_t   vertical_speed_packed; // vertical speed. See description below.
 
-use crate::CrsfParsingError;
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
+use crate::CrsfParsingError;
 use core::f32::consts::E;
 use libm::{logf, powf};
 

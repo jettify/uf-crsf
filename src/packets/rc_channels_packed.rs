@@ -1,6 +1,6 @@
-use crate::CrsfParsingError;
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
+use crate::CrsfParsingError;
 
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
