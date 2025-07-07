@@ -10,9 +10,9 @@
 //    uint8_t reserved;
 //    uint8_t hDOP;           // Horizontal dilution of precision,Dimensionless in nits of.1.
 //    uint8_t vDOP;           // vertical dilution of precision, Dimensionless in nits of .1.
-use crate::CrsfParsingError;
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
+use crate::CrsfParsingError;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

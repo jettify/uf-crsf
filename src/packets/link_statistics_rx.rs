@@ -3,9 +3,9 @@
 //!   uint8_t link_quality;   // Package success rate / Link quality (%)
 //!   int8_t  snr;            // SNR (dB)
 //!   uint8_t rf_power_db;    // rf power in dBm
-use crate::CrsfParsingError;
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
+use crate::CrsfParsingError;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

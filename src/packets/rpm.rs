@@ -1,6 +1,6 @@
-use crate::CrsfParsingError;
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
+use crate::CrsfParsingError;
 use heapless::Vec;
 
 #[derive(Clone, Debug, PartialEq)]

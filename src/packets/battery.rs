@@ -1,6 +1,6 @@
-use crate::CrsfParsingError;
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
+use crate::CrsfParsingError;
 
 //    int16_t voltage;        // Voltage (LSB = 10 µV)
 //    int16_t current;        // Current (LSB = 10 µA)

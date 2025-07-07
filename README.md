@@ -2,7 +2,7 @@
 
 [![Rust](https://github.com/jettify/uf-crsf/actions/workflows/CI.yml/badge.svg)](https://github.com/jettify/uf-crsf/actions/workflows/CI.yml)
 Protocol parser for `no_std` environment for TBS Crossfire used in
-RC links like ExpresssLRS.
+RC links like ExpressLRS.
 
 **Note:** This library is a work in progress.
 
