@@ -1,6 +1,6 @@
 use crate::{
     constants,
-    error::CrsfError,
+    error::CrsfStreamError,
     packets::{Packet, PacketAddress},
 };
 use num_enum::TryFromPrimitive;
@@ -25,7 +25,7 @@ pub struct CrsfParser {
 pub enum ParseResult<T> {
     Complete(T),
     Incomplete,
-    Error(CrsfError),
+    Error(CrsfStreamError),
 }
 
 impl CrsfParser {
@@ -47,7 +47,7 @@ impl CrsfParser {
                     ParseResult::Incomplete
                 } else {
                     self.state = State::AwaitingSync;
-                    ParseResult::Error(CrsfError::InvalidSync)
+                    ParseResult::Error(CrsfStreamError::InvalidSync)
                 }
             }
             State::AwaitingLenth => {
@@ -56,7 +56,7 @@ impl CrsfParser {
                 if !(constants::CRSF_MIN_PACKET_SIZE..constants::CRSF_MAX_PACKET_SIZE).contains(&n)
                 {
                     self.reset();
-                    return ParseResult::Error(CrsfError::InvalidPacketLength);
+                    return ParseResult::Error(CrsfStreamError::InvalidPacketLength);
                 }
                 self.position = 1;
                 self.buffer[self.position] = byte;
@@ -83,7 +83,7 @@ impl CrsfParser {
 
                 if calculated_crc != packet_crc {
                     self.reset();
-                    return ParseResult::Error(CrsfError::InvalidCrc {
+                    return ParseResult::Error(CrsfStreamError::InvalidCrc {
                         calculated_crc,
                         packet_crc,
                     });
@@ -117,7 +117,7 @@ impl CrsfParser {
         match self.push_byte_raw(byte) {
             ParseResult::Complete(raw_packet) => match Packet::parse(&raw_packet) {
                 Ok(packet) => ParseResult::Complete(packet),
-                Err(e) => ParseResult::Error(CrsfError::ParsingError(e)),
+                Err(e) => ParseResult::Error(CrsfStreamError::ParsingError(e)),
             },
             ParseResult::Incomplete => ParseResult::Incomplete,
             ParseResult::Error(e) => ParseResult::Error(e),
@@ -183,7 +183,7 @@ pub struct RawPacketIterator<'a, 'b> {
 }
 
 impl<'b> Iterator for RawPacketIterator<'_, 'b> {
-    type Item = Result<&'b [u8], CrsfError>;
+    type Item = Result<&'b [u8], CrsfStreamError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.pos < self.buffer.len() {
@@ -212,7 +212,7 @@ pub struct PacketIterator<'a, 'b> {
 }
 
 impl Iterator for PacketIterator<'_, '_> {
-    type Item = Result<Packet, CrsfError>;
+    type Item = Result<Packet, CrsfStreamError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.pos < self.buffer.len() {

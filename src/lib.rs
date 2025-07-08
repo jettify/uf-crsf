@@ -5,7 +5,7 @@ pub mod error;
 pub mod packets;
 pub mod parser;
 
-pub use error::{CrsfError, CrsfParsingError};
+pub use error::{CrsfStreamError, CrsfParsingError};
 pub use packets::{write_packet_to_buffer, Packet, PacketAddress, PacketType};
 pub use parser::{CrsfParser, RawCrsfPacket};
 
@@ -56,7 +56,7 @@ mod tests {
             0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 103,
         ];
         let mut parser = CrsfParser::new();
-        let results: std::vec::Vec<Result<Packet, CrsfError>> =
+        let results: std::vec::Vec<Result<Packet, CrsfStreamError>> =
             parser.iter_packets(&raw_bytes).collect();
 
         let expected = [
@@ -80,7 +80,7 @@ mod tests {
             0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 103,
         ];
         let mut parser = CrsfParser::new();
-        let results: std::vec::Vec<Result<&[u8], CrsfError>> =
+        let results: std::vec::Vec<Result<&[u8], CrsfStreamError>> =
             parser.iter_packets_raw(&raw_bytes).collect();
 
         assert_eq!(results.len(), 2);
@@ -100,7 +100,7 @@ mod tests {
             0x01, 0x0B, 0xF8, 0xC0, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 103,
         ];
         let mut parser = CrsfParser::new();
-        let results: std::vec::Vec<Result<&[u8], CrsfError>> =
+        let results: std::vec::Vec<Result<&[u8], CrsfStreamError>> =
             parser.iter_packets_raw(&raw_bytes).collect();
 
         assert_eq!(results.len(), 2);
