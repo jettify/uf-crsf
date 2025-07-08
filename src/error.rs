@@ -8,7 +8,7 @@ pub enum CrsfParsingError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CrsfError {
+pub enum CrsfStreamError {
     InvalidSync,
     InvalidPacketLength,
     InvalidCrc { calculated_crc: u8, packet_crc: u8 },

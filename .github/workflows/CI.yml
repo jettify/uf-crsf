@@ -18,6 +18,8 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install libudev
       run: sudo apt install -y libudev-dev
+    - name: Lint
+      run: cargo clippy --all -- -D warnings
     - name: Build
       run: cargo build --verbose
     - name: Run tests

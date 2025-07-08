@@ -9,7 +9,7 @@ fmt:
   cargo fmt --all
 
 lint:
-  cargo clippy
+  cargo clippy --all -- -D warnings
 
 ex:
   cargo run --example=local_std
