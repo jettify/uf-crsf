@@ -4,7 +4,6 @@ use crate::CrsfParsingError;
 use heapless::String;
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FlightMode {
     pub flight_mode: String<63>,
 }
