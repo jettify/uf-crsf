@@ -6,6 +6,7 @@ use crc;
 mod airspeed;
 mod baro_altitude;
 mod battery;
+mod esp_now;
 mod flight_mode;
 mod gps;
 mod gps_extended;
@@ -24,6 +25,7 @@ mod vtx_telemetry;
 pub use airspeed::AirSpeed;
 pub use baro_altitude::BaroAltitude;
 pub use battery::Battery;
+pub use esp_now::EspNow;
 pub use flight_mode::FlightMode;
 pub use gps::Gps;
 pub use gps_extended::GpsExtended;
@@ -82,6 +84,7 @@ pub enum Packet {
     VtxTelemetry(VtxTelemetry),
     FlightMode(FlightMode),
     Heartbeat(Heartbeat),
+    EspNow(EspNow),
     NotImlemented(PacketType, usize),
 }
 
@@ -116,6 +119,7 @@ impl Packet {
             Voltages::PACKET_TYPE => Ok(Self::Voltages(Voltages::from_bytes(data)?)),
             VtxTelemetry::PACKET_TYPE => Ok(Self::VtxTelemetry(VtxTelemetry::from_bytes(data)?)),
             VariometerSensor::PACKET_TYPE => Ok(Self::Vario(VariometerSensor::from_bytes(data)?)),
+            EspNow::PACKET_TYPE => Ok(Self::EspNow(EspNow::from_bytes(data)?)),
             Heartbeat::PACKET_TYPE => Ok(Self::Heartbeat(Heartbeat::from_bytes(data)?)),
             _ => Ok(Packet::NotImlemented(
                 packet_type,
@@ -149,6 +153,7 @@ pub enum PacketType {
     LinkStatisticsTx = 0x1D,
     Attitude = 0x1E,
     FlightMode = 0x21,
+    EspNow = 0x22,
     DevicePing = 0x28,
     DeviceInfo = 0x29,
     ParameterSettingsEntry = 0x2B,
