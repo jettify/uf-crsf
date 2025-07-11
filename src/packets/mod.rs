@@ -15,6 +15,7 @@ mod heartbeat;
 mod link_statistics;
 mod link_statistics_rx;
 mod link_statistics_tx;
+mod mavlink_fc;
 mod rc_channels_packed;
 mod rpm;
 mod temp;
@@ -152,6 +153,7 @@ pub enum PacketType {
     LinkStatisticsRx = 0x1C,
     LinkStatisticsTx = 0x1D,
     Attitude = 0x1E,
+    MavLinkFc = 0x1F,
     FlightMode = 0x21,
     EspNow = 0x22,
     DevicePing = 0x28,
