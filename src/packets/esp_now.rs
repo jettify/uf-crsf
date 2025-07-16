@@ -1,9 +1,3 @@
-//    uint8_t VAL1;           // Used for Seat Position of the Pilot
-//    uint8_t VAL2;           // Used for the Current Pilots Lap
-//    char    VAL3[15];       // 15 characters for the lap time current/split
-//    char    VAL4[15];       // 15 characters for the lap time current/split
-//    char    FREE_TEXT[20];  // Free text of 20 character at the bottom of the screen
-//
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;

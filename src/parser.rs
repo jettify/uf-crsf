@@ -126,7 +126,7 @@ impl CrsfParser {
 
     pub fn reset(&mut self) {
         self.position = 0;
-        self.state = State::AwaitingSync
+        self.state = State::AwaitingSync;
     }
 }
 

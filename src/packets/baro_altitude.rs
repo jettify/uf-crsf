@@ -1,8 +1,3 @@
-//!
-//!     uint16_t altitude_packed;       // Altitude above start (calibration) point
-//!                                     // See description below.
-//!     int8_t   vertical_speed_packed; // vertical speed. See description below.
-
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
