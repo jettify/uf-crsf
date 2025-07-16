@@ -1,15 +1,3 @@
-//!
-//!  uint8_t     up_rssi_ant1;       // Uplink RSSI Antenna 1 (dBm * -1)
-//!  uint8_t     up_rssi_ant2;       // Uplink RSSI Antenna 2 (dBm * -1)
-//!  uint8_t     up_link_quality;    // Uplink Package success rate / Link quality (%)
-//!  int8_t      up_snr;             // Uplink SNR (dB)
-//!  uint8_t     active_antenna;     // number of currently best antenna
-//!  uint8_t     rf_profile;         // enum {4fps = 0 , 50fps, 150fps}
-//!  uint8_t     up_rf_power;        // enum {0mW = 0, 10mW, 25mW, 100mW,
-//!                                  // 500mW, 1000mW, 2000mW, 250mW, 50mW}
-//!  uint8_t     down_rssi;          // Downlink RSSI (dBm * -1)
-//!  uint8_t     down_link_quality;  // Downlink Package success rate / Link quality (%)
-//!  int8_t      down_snr;           // Downlink SNR (dB)
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
@@ -49,9 +37,7 @@ impl CrsfPacket for VtxTelemetry {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::MIN_PAYLOAD_SIZE {
-            Err(CrsfParsingError::InvalidPayloadLength)
-        } else {
+        if data.len() == Self::MIN_PAYLOAD_SIZE {
             Ok(Self {
                 up_rssi_ant1: data[0],
                 up_rssi_ant2: data[1],
@@ -64,6 +50,8 @@ impl CrsfPacket for VtxTelemetry {
                 down_link_quality: data[8],
                 down_snr: data[9] as i8,
             })
+        } else {
+            Err(CrsfParsingError::InvalidPayloadLength)
         }
     }
 }

@@ -13,3 +13,9 @@ lint:
 
 ex:
   cargo run --example=local_std
+
+pedantic:
+  cargo clippy -- -W clippy::pedantic
+
+audit:
+  cargo audit
