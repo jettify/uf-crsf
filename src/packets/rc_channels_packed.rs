@@ -10,6 +10,7 @@ impl CrsfPacket for RcChannelsPacked {
     const PACKET_TYPE: PacketType = PacketType::RcChannelsPacked;
     const MIN_PAYLOAD_SIZE: usize = 22;
 
+    #[allow(clippy::cast_possible_truncation)]
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         self.validate_buffer_size(buffer)?;
         let ch = &self.0;
@@ -39,7 +40,7 @@ impl CrsfPacket for RcChannelsPacked {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        let data: [u16; Self::MIN_PAYLOAD_SIZE] = core::array::from_fn(|i| data[i] as u16);
+        let data: [u16; Self::MIN_PAYLOAD_SIZE] = core::array::from_fn(|i| u16::from(data[i]));
 
         if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
