@@ -92,7 +92,10 @@ impl CrsfParser {
                 let end = self.position + 1;
                 self.reset();
                 let bytes = &self.buffer[start..end];
-                ParseResult::Complete(RawCrsfPacket::new(bytes).unwrap())
+                match RawCrsfPacket::new(bytes) {
+                    Some(packet) => ParseResult::Complete(packet),
+                    None => ParseResult::Error(CrsfStreamError::InvalidPacketLength),
+                }
             }
         }
     }

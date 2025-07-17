@@ -1,5 +1,5 @@
 test:
-  cargo test -- --show-output
+  cargo test --all-features -- --show-output
 
 build:
   cargo build
