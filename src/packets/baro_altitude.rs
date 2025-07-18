@@ -4,10 +4,18 @@ use crate::CrsfParsingError;
 use core::f32::consts::E;
 use libm::{logf, powf};
 
+/// Represents a Barometric Altitude & Vertical Speed packet.
+///
+/// This frame allows sending altitude and vertical speed in a bit-efficient way.
+/// It combines decimeter-precision altitude with a 32-km range and
+/// 3cm/s-precision vertical speed with a 25m/s range into just 3 bytes.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct BaroAltitude {
+    /// Packed altitude above start (calibration) point.
+    /// See `get_altitude_dm()` for unpacking.
     pub altitude_packed: u16,
+    /// Packed vertical speed. See `get_vertical_speed_cm_s()` for unpacking.
     pub vertical_speed_packed: i8,
 }
 
