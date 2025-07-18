@@ -2,12 +2,17 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents a Battery Sensor packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Battery {
+    /// Voltage (in 10mV units, e.g., 1234 is 12.34V).
     pub voltage: i16,
+    /// Current (in 10mA units, e.g., 100 is 1.0A).
     pub current: i16,
+    /// Capacity used (mAh). This is a 24-bit value.
     pub capacity_used: u32,
+    /// Battery remaining (percent).
     pub remaining: u8,
 }
 

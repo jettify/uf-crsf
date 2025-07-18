@@ -11,8 +11,11 @@ fmt:
 lint:
   cargo clippy --all -- -D warnings
 
-ex:
+ex_std:
   cargo run --example=local_std
+
+ex_raw:
+  cargo run --example=local_raw
 
 pedantic:
   cargo clippy -- -W clippy::pedantic

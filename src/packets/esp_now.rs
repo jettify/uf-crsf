@@ -2,13 +2,19 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents an ESP-NOW Messages packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct EspNow {
+    /// Used for Seat Position of the Pilot.
     pub val1: u8,
+    /// Used for the Current Pilots Lap.
     pub val2: u8,
+    /// 15 characters for the lap time current/split.
     pub val3: [u8; 15],
+    /// 15 characters for the lap time current/split.
     pub val4: [u8; 15],
+    /// Free text of 20 characters at the bottom of the screen.
     pub free_text: [u8; 20],
 }
 
