@@ -2,15 +2,22 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents a GPS packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Gps {
-    pub latitude: i32,    // degree / 10`000`000
-    pub longitude: i32,   // degree / 10`000`000
-    pub groundspeed: u16, // km/h / 100
-    pub heading: u16,     // degree / 100
-    pub altitude: u16,    // meter - 1000m offset
-    pub satellites: u8,   // # of sats in view
+    /// Latitude in degrees * 10^7.
+    pub latitude: i32,
+    /// Longitude in degrees * 10^7.
+    pub longitude: i32,
+    /// Groundspeed in 0.01 km/h units.
+    pub groundspeed: u16,
+    /// Heading in 0.01 degree units.
+    pub heading: u16,
+    /// Altitude with 1000m offset.
+    pub altitude: u16,
+    /// Number of satellites in view.
+    pub satellites: u8,
 }
 
 impl CrsfPacket for Gps {

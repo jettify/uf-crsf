@@ -2,6 +2,10 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents a GPS Time packet.
+///
+/// This frame is needed for synchronization with a GPS time pulse.
+/// The maximum offset of time is +/-10ms.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GpsTime {
