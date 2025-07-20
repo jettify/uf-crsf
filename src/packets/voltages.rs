@@ -3,9 +3,15 @@ use crate::packets::PacketType;
 use crate::CrsfParsingError;
 use heapless::Vec;
 
+/// Represents a Voltages packet.
+///
+/// Used to transmit voltage telemetry from the craft to the transmitter. Can be used
+/// to report battery cell voltages, or a group of associated voltages from a single source.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Voltages {
+    /// Source of the voltages.
     pub voltage_source_id: u8,
+    /// Up to 29 voltages in millivolts (e.g., 3.850V = 3850).
     pub voltage_values: Vec<u16, 29>,
 }
 

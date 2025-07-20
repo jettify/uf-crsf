@@ -3,9 +3,17 @@ use crate::packets::PacketType;
 use crate::CrsfParsingError;
 use heapless::Vec;
 
+/// Represents an RPM packet.
+///
+/// Frame type used to transmit RPM (revolutions per minute) telemetry data from the craft
+/// to the transmitter. This frame can be used to report motor or propeller RPM for
+/// monitoring performance or diagnostics.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rpm {
+    /// Identifies the source of the RPM data (e.g., 0 = Motor 1, 1 = Motor 2, etc.).
     pub rpm_source_id: u8,
+    /// 1 to 19 RPM values, with negative ones representing the motor spinning in reverse.
+    /// These are 24-bit values.
     pub rpm_values: Vec<i32, 19>,
 }
 

@@ -2,10 +2,12 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents a Variometer Sensor packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct VariometerSensor {
-    pub v_speed: i16, // Vertical speed cm/s
+    /// Vertical speed in cm/s.
+    pub v_speed: i16,
 }
 
 impl CrsfPacket for VariometerSensor {

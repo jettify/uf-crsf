@@ -2,6 +2,14 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents an RC Channels Packed packet.
+///
+/// This packet contains 16 channels of RC data, each packed as an 11-bit value.
+/// The values can be converted to microseconds using the formula: `(x - 992) * 5 / 8 + 1500`.
+/// A center value of 1500µs corresponds to a raw value of 992.
+///
+/// In case of a failsafe, this frame will no longer be sent. It is recommended to
+/// wait for 1 second before starting the FC failsafe routine.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RcChannelsPacked(pub [u16; 16]);
