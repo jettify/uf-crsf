@@ -2,14 +2,21 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents a Link Statistics TX packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct LinkStatisticsTx {
+    /// RSSI (dBm * -1).
     pub rssi_db: u8,
+    /// RSSI in percent.
     pub rssi_percent: u8,
+    /// Package success rate / Link quality (%).
     pub link_quality: u8,
+    /// SNR (dB).
     pub snr: i8,
+    /// RF power in dBm.
     pub rf_power_db: u8,
+    /// RF frames per second (fps / 10).
     pub fps: u8,
 }
 

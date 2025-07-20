@@ -2,18 +2,32 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents a Link Statistics packet.
+///
+/// This packet provides statistics about the connection quality.
+/// Uplink is the connection from the ground to the UAV and downlink the opposite direction.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct LinkStatistics {
+    /// Uplink RSSI Antenna 1 (dBm * -1).
     pub uplink_rssi_1: u8,
+    /// Uplink RSSI Antenna 2 (dBm * -1).
     pub uplink_rssi_2: u8,
+    /// Uplink package success rate / link quality (%).
     pub uplink_link_quality: u8,
+    /// Uplink SNR (dB).
     pub uplink_snr: i8,
+    /// The currently active antenna.
     pub active_antenna: u8,
+    /// RF profile, e.g., 4fps = 0, 50fps, 150fps.
     pub rf_mode: u8,
+    /// Uplink TX power enum {0mW = 0, 10mW, 25mW, 100mW, 500mW, 1000mW, 2000mW, 250mW, 50mW}.
     pub uplink_tx_power: u8,
+    /// Downlink RSSI (dBm * -1).
     pub downlink_rssi: u8,
+    /// Downlink package success rate / link quality (%).
     pub downlink_link_quality: u8,
+    /// Downlink SNR (dB).
     pub downlink_snr: i8,
 }
 

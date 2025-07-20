@@ -2,13 +2,18 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents a MAVLink FC packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct MavLinkFc {
     pub airspeed: i16,
+    /// Vehicle mode flags, defined in MAV_MODE_FLAG enum.
     pub base_mode: u8,
+    /// Autopilot-specific flags.
     pub custom_mode: u32,
+    /// FC type; defined in MAV_AUTOPILOT enum.
     pub autopilot_type: u8,
+    /// Vehicle type; defined in MAV_TYPE enum.
     pub firmware_type: u8,
 }
 

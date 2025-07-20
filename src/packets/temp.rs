@@ -4,9 +4,16 @@ use crate::CrsfParsingError;
 
 use heapless::Vec;
 
+/// Represents a Temperature packet.
+///
+/// Used to transmit temperature telemetry data from the vehicle to the transmitter.
+/// This frame can be used to report temperature readings from various sources on the vehicle,
+/// such as motors, ESCs, or the environment.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Temp {
+    /// Identifies the source of the temperature data (e.g., 0 = FC, 1 = Ambient, etc.).
     pub temp_source_id: u8,
+    /// Up to 20 temperature values in deci-degrees Celsius (e.g., 250 = 25.0°C).
     pub temperatures: Vec<i16, 20>,
 }
 
