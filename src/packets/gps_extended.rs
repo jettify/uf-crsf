@@ -2,20 +2,33 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents an Extended GPS packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GpsExtended {
+    /// Current GPS fix quality.
     pub fix_type: u8,
+    /// Northward speed (north = positive) in cm/s.
     pub n_speed: i16,
+    /// Eastward speed (east = positive) in cm/s.
     pub e_speed: i16,
+    /// Vertical speed (up = positive) in cm/s.
     pub v_speed: i16,
+    /// Horizontal speed accuracy in cm/s.
     pub h_speed_acc: i16,
+    /// Heading accuracy in 0.1 degrees.
     pub track_acc: i16,
+    /// Height above GPS Ellipsoid (not MSL) in meters.
     pub alt_ellipsoid: i16,
+    /// Horizontal accuracy in cm.
     pub h_acc: i16,
+    /// Vertical accuracy in cm.
     pub v_acc: i16,
+    /// Reserved for future use.
     pub reserved: u8,
+    /// Horizontal dilution of precision in 0.1 units.
     pub h_dop: u8,
+    /// Vertical dilution of precision in 0.1 units.
     pub v_dop: u8,
 }
 

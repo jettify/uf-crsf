@@ -2,9 +2,11 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
+/// Represents a Heartbeat packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Heartbeat {
+    /// Origin device address.
     pub origin_address: i16,
 }
 

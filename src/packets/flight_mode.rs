@@ -3,8 +3,12 @@ use crate::packets::PacketType;
 use crate::CrsfParsingError;
 use heapless::String;
 
+/// Represents a Flight Mode packet.
+///
+/// Contains the flight mode as a null-terminated string.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FlightMode {
+    /// The flight mode string.
     pub flight_mode: String<63>,
 }
 
