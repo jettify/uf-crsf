@@ -2,21 +2,21 @@ name: Miri
 
 on: [push, pull_request]
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   miri:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install libudev
       run: sudo apt install -y libudev-dev
-    - name: Install Rust toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        # Miri requires nightly Rust
-        toolchain: nightly
-        override: true
-        components: miri
-    - name: Run Miri
-      # Run all of your tests inside of Miri interpreter
+    - name: Install Miri
+      run: |
+        rustup toolchain install nightly --component miri
+        rustup override set nightly
+        cargo miri setup
+
+    - name: Test with Miri
       run: cargo miri test
