@@ -225,8 +225,8 @@ pub fn write_packet_to_buffer<T: CrsfPacket>(
         return Err(CrsfParsingError::BufferOverflow);
     }
 
-    // length byte = 1 (type) + payload_size
-    let length_byte = (1 + payload_size) as u8;
+    // length byte = 2 (type + crc) + payload_size
+    let length_byte = (payload_size + 2) as u8;
 
     buffer[0] = dest as u8;
     buffer[1] = length_byte;
@@ -285,11 +285,11 @@ mod tests {
         assert_eq!(bytes_written, 6);
 
         // Destination, Length, Type, Payload, CRC
-        // Length = Type (1) + Payload (2) = 3
+        // Length = Type (1) + Payload (2) + CRC (1) = 4
         // CRC is calculated over Type and Payload
         let expected_packet: [u8; 6] = [
             dest as u8,
-            3,
+            4,
             MockPacket::PACKET_TYPE as u8,
             0xAA,
             0xBB,
