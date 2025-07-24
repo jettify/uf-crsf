@@ -108,14 +108,6 @@ impl CrsfParser {
         }
     }
 
-    pub fn iter_packets_raw<'a, 'b>(&'a mut self, buffer: &'b [u8]) -> RawPacketIterator<'a, 'b> {
-        RawPacketIterator {
-            parser: self,
-            buffer,
-            pos: 0,
-        }
-    }
-
     pub fn push_byte(&mut self, byte: u8) -> ParseResult<Packet> {
         match self.push_byte_raw(byte) {
             ParseResult::Complete(raw_packet) => match Packet::parse(&raw_packet) {
@@ -179,35 +171,6 @@ impl<'a> RawCrsfPacket<'a> {
     }
 }
 
-pub struct RawPacketIterator<'a, 'b> {
-    parser: &'a mut CrsfParser,
-    buffer: &'b [u8],
-    pos: usize,
-}
-
-impl<'b> Iterator for RawPacketIterator<'_, 'b> {
-    type Item = Result<&'b [u8], CrsfStreamError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.pos < self.buffer.len() {
-            let byte = self.buffer[self.pos];
-            let result = self.parser.push_byte_raw(byte);
-            self.pos += 1;
-
-            match result {
-                ParseResult::Complete(raw_packet) => {
-                    let packet_len = raw_packet.len();
-                    let start_index = self.pos - packet_len;
-                    return Some(Ok(&self.buffer[start_index..self.pos]));
-                }
-                ParseResult::Incomplete => (),
-                ParseResult::Error(err) => return Some(Err(err)),
-            }
-        }
-        None
-    }
-}
-
 pub struct PacketIterator<'a, 'b> {
     parser: &'a mut CrsfParser,
     buffer: &'b [u8],
@@ -237,7 +200,10 @@ mod tests {
     extern crate std;
 
     use super::*;
-    use crate::packets::{CrsfPacket, LinkStatistics, PacketType, RcChannelsPacked};
+    use crate::packets::{
+        write_packet_to_buffer, CrsfPacket, LinkStatistics, PacketAddress, PacketType,
+        RcChannelsPacked,
+    };
     use crate::parser::ParseResult;
 
     #[test]
@@ -296,61 +262,58 @@ mod tests {
     }
 
     #[test]
-    fn test_raw_packet_iterator() {
-        let raw_bytes: [u8; 40] = [
-            0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252, 0xC8, 24, 0x16, 0xE0, 0x03,
-            0x1F, 0x58, 0xC0, 0x07, 0x16, 0xB0, 0x80, 0x05, 0x2C, 0x60, 0x01, 0x0B, 0xF8, 0xC0,
-            0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 103,
-        ];
+    fn test_raw_to_full_packet_conversion() {
+        // This test illustrates the two-step parsing process:
+        // 1. Use `push_byte_raw` to get a `RawCrsfPacket`.
+        // 2. Use `Packet::parse` to convert the `RawCrsfPacket` to a `Packet`.
+
+        // First, create a LinkStatistics packet
+        let link_stats_packet = LinkStatistics {
+            uplink_rssi_1: 16,
+            uplink_rssi_2: 19,
+            uplink_link_quality: 99,
+            uplink_snr: 51 as i8,
+            active_antenna: 1,
+            rf_mode: 2,
+            uplink_tx_power: 3,
+            downlink_rssi: 8,
+            downlink_link_quality: 88,
+            downlink_snr: 48 as i8,
+        };
+
+        // Serialize it into a buffer
+        let mut buffer = [0u8; 64];
+        let bytes_written = write_packet_to_buffer(
+            &mut buffer,
+            PacketAddress::FlightController,
+            &link_stats_packet,
+        )
+        .unwrap();
+        let raw_bytes = &buffer[..bytes_written];
+
         let mut parser = CrsfParser::new();
-        let results: std::vec::Vec<Result<&[u8], CrsfStreamError>> =
-            parser.iter_packets_raw(&raw_bytes).collect();
 
-        assert_eq!(results.len(), 2);
-        assert!(results[0].is_ok());
-        assert_eq!(results[0].unwrap(), &raw_bytes[0..14]);
-        assert!(results[1].is_ok());
-        assert_eq!(results[1].unwrap(), &raw_bytes[14..40]);
-    }
+        // 1. Parse raw bytes to get a RawCrsfPacket
+        let mut raw_packet_result = ParseResult::Incomplete;
+        for &byte in raw_bytes {
+            raw_packet_result = parser.push_byte_raw(byte);
+            if let ParseResult::Complete(_) = &raw_packet_result {
+                break;
+            }
+        }
 
-    #[test]
-    fn test_raw_iterator_and_manual_parse() {
-        let raw_bytes: [u8; 40] = [
-            // Packet 1: LinkStatistics
-            0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252,
-            // Packet 2: RCChannels
-            0xC8, 24, 0x16, 0xE0, 0x03, 0x1F, 0x58, 0xC0, 0x07, 0x16, 0xB0, 0x80, 0x05, 0x2C, 0x60,
-            0x01, 0x0B, 0xF8, 0xC0, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 103,
-        ];
-        let mut parser = CrsfParser::new();
-        let results: std::vec::Vec<Result<&[u8], CrsfStreamError>> =
-            parser.iter_packets_raw(&raw_bytes).collect();
+        let raw_packet = match raw_packet_result {
+            ParseResult::Complete(packet) => packet,
+            res => panic!("Expected a complete raw packet, but got {:?}", res),
+        };
 
-        assert_eq!(results.len(), 2);
+        // 2. Convert the RawCrsfPacket to a typed Packet
+        let packet = Packet::parse(&raw_packet).expect("Failed to parse raw packet into a Packet");
 
-        // First packet
-        let raw_packet_bytes_1 = results[0].as_ref().unwrap();
-        assert_eq!(*raw_packet_bytes_1, &raw_bytes[0..14]);
-        let raw_packet_1 = RawCrsfPacket::new(raw_packet_bytes_1).unwrap();
-        let packet_1 = Packet::parse(&raw_packet_1).unwrap();
-
-        // Manually create expected packet to compare
-        let payload_1: &[u8; 10] = raw_packet_1.payload().try_into().unwrap();
-        let ls = LinkStatistics::from_bytes(payload_1).unwrap();
-        let expected_packet_1 = Packet::LinkStatistics(ls);
-        assert_eq!(expected_packet_1, packet_1);
-
-        // Second packet
-        let raw_packet_bytes_2 = results[1].as_ref().unwrap();
-        assert_eq!(*raw_packet_bytes_2, &raw_bytes[14..40]);
-        let raw_packet_2 = RawCrsfPacket::new(raw_packet_bytes_2).unwrap();
-        let packet_2 = Packet::parse(&raw_packet_2).unwrap();
-
-        // Manually create expected packet to compare
-        let expected_channels = [
-            992, 992, 352, 992, 352, 352, 352, 352, 352, 352, 992, 992, 0, 0, 0, 0,
-        ];
-        let expected_packet_2 = Packet::RCChannels(RcChannelsPacked(expected_channels));
-        assert_eq!(expected_packet_2, packet_2);
+        // Verify the resulting packet
+        assert!(matches!(packet, Packet::LinkStatistics(_)));
+        if let Packet::LinkStatistics(stats) = packet {
+            assert_eq!(stats, link_stats_packet)
+        }
     }
 }
