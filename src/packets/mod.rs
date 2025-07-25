@@ -35,6 +35,7 @@ pub use heartbeat::Heartbeat;
 pub use link_statistics::LinkStatistics;
 pub use link_statistics_rx::LinkStatisticsRx;
 pub use link_statistics_tx::LinkStatisticsTx;
+pub use mavlink_fc::MavLinkFc;
 pub use rc_channels_packed::RcChannelsPacked;
 pub use rpm::Rpm;
 pub use temp::Temp;
@@ -86,6 +87,7 @@ pub enum Packet {
     FlightMode(FlightMode),
     Heartbeat(Heartbeat),
     EspNow(EspNow),
+    MavLinkFc(MavLinkFc),
     NotImlemented(PacketType, usize),
 }
 
@@ -122,6 +124,7 @@ impl Packet {
             VariometerSensor::PACKET_TYPE => Ok(Self::Vario(VariometerSensor::from_bytes(data)?)),
             EspNow::PACKET_TYPE => Ok(Self::EspNow(EspNow::from_bytes(data)?)),
             Heartbeat::PACKET_TYPE => Ok(Self::Heartbeat(Heartbeat::from_bytes(data)?)),
+            MavLinkFc::PACKET_TYPE => Ok(Self::MavLinkFc(MavLinkFc::from_bytes(data)?)),
             _ => Ok(Packet::NotImlemented(
                 packet_type,
                 raw_packet.payload().len(),
