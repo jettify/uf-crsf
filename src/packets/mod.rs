@@ -15,6 +15,7 @@ mod heartbeat;
 mod link_statistics;
 mod link_statistics_rx;
 mod link_statistics_tx;
+mod mavlink_envelope;
 mod mavlink_fc;
 mod rc_channels_packed;
 mod rpm;
@@ -35,6 +36,7 @@ pub use heartbeat::Heartbeat;
 pub use link_statistics::LinkStatistics;
 pub use link_statistics_rx::LinkStatisticsRx;
 pub use link_statistics_tx::LinkStatisticsTx;
+pub use mavlink_envelope::MavlinkEnvelope;
 pub use mavlink_fc::MavLinkFc;
 pub use rc_channels_packed::RcChannelsPacked;
 pub use rpm::Rpm;
@@ -87,6 +89,7 @@ pub enum Packet {
     FlightMode(FlightMode),
     Heartbeat(Heartbeat),
     EspNow(EspNow),
+    MavlinkEnvelope(MavlinkEnvelope),
     MavLinkFc(MavLinkFc),
     NotImlemented(PacketType, usize),
 }
@@ -125,6 +128,9 @@ impl Packet {
             EspNow::PACKET_TYPE => Ok(Self::EspNow(EspNow::from_bytes(data)?)),
             Heartbeat::PACKET_TYPE => Ok(Self::Heartbeat(Heartbeat::from_bytes(data)?)),
             MavLinkFc::PACKET_TYPE => Ok(Self::MavLinkFc(MavLinkFc::from_bytes(data)?)),
+            MavlinkEnvelope::PACKET_TYPE => {
+                Ok(Self::MavlinkEnvelope(MavlinkEnvelope::from_bytes(data)?))
+            }
             _ => Ok(Packet::NotImlemented(
                 packet_type,
                 raw_packet.payload().len(),
@@ -173,6 +179,7 @@ pub enum PacketType {
     MspResponse = 0x7B,
     MspWrite = 0x7C,
     ArdupilotResponse = 0x80,
+    MavlinkEnvelope = 0xAA,
 }
 
 impl PacketType {
