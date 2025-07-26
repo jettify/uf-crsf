@@ -263,11 +263,6 @@ mod tests {
 
     #[test]
     fn test_raw_to_full_packet_conversion() {
-        // This test illustrates the two-step parsing process:
-        // 1. Use `push_byte_raw` to get a `RawCrsfPacket`.
-        // 2. Use `Packet::parse` to convert the `RawCrsfPacket` to a `Packet`.
-
-        // First, create a LinkStatistics packet
         let link_stats_packet = LinkStatistics {
             uplink_rssi_1: 16,
             uplink_rssi_2: 19,
