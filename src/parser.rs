@@ -3,6 +3,7 @@ use crate::{
     error::CrsfStreamError,
     packets::{Packet, PacketAddress},
 };
+use crc::Crc;
 use num_enum::TryFromPrimitive;
 
 #[derive(Debug, Default, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
@@ -27,6 +28,8 @@ pub enum ParseResult<T> {
     Incomplete,
     Error(CrsfStreamError),
 }
+
+const CRC8_DVB_S2: Crc<u8> = Crc::<u8>::new(&crc::CRC_8_DVB_S2);
 
 impl CrsfParser {
     pub fn new() -> Self {
@@ -75,8 +78,7 @@ impl CrsfParser {
                 self.position += 1;
                 self.buffer[self.position] = byte;
 
-                let crc8_dvb_s2 = crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2);
-                let mut digest = crc8_dvb_s2.digest();
+                let mut digest = CRC8_DVB_S2.digest();
                 digest.update(&self.buffer[2..self.position]);
                 let calculated_crc = digest.finalize();
                 let packet_crc = self.buffer[self.position];
