@@ -51,9 +51,7 @@ impl CrsfPacket for LinkStatistics {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::MIN_PAYLOAD_SIZE {
-            Err(CrsfParsingError::InvalidPayloadLength)
-        } else {
+        if data.len() == Self::MIN_PAYLOAD_SIZE {
             Ok(Self {
                 uplink_rssi_1: data[0],
                 uplink_rssi_2: data[1],
@@ -66,6 +64,8 @@ impl CrsfPacket for LinkStatistics {
                 downlink_link_quality: data[8],
                 downlink_snr: data[9] as i8,
             })
+        } else {
+            Err(CrsfParsingError::InvalidPayloadLength)
         }
     }
 }

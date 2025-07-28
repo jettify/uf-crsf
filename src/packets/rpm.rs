@@ -24,7 +24,7 @@ impl CrsfPacket for Rpm {
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         buffer[0] = self.rpm_source_id;
         let mut i = 1;
-        for &rpm in self.rpm_values.iter() {
+        for &rpm in &self.rpm_values {
             let bytes = rpm.to_be_bytes();
             buffer[i..i + 3].copy_from_slice(&bytes[1..4]);
             i += 3;
