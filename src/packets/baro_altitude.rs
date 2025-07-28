@@ -24,9 +24,9 @@ impl BaroAltitude {
     /// MSB = 1: altitude is in meters. Without any offset.
     pub fn get_altitude_dm(&self) -> i32 {
         if (self.altitude_packed & 0x8000) != 0 {
-            ((self.altitude_packed & 0x7fff) as i32) * 10
+            (i32::from(self.altitude_packed & 0x7fff)) * 10
         } else {
-            (self.altitude_packed as i32) - 10000
+            (i32::from(self.altitude_packed)) - 10000
         }
     }
 

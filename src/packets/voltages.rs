@@ -23,7 +23,7 @@ impl CrsfPacket for Voltages {
         self.validate_buffer_size(buffer)?;
         buffer[0] = self.voltage_source_id;
         let mut i = 1;
-        for &voltage in self.voltage_values.iter() {
+        for &voltage in &self.voltage_values {
             let bytes = voltage.to_be_bytes();
             buffer[i..i + 2].copy_from_slice(&bytes);
             i += 2;

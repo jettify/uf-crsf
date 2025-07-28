@@ -24,7 +24,7 @@ impl CrsfPacket for Temp {
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         buffer[0] = self.temp_source_id;
         let mut i = 1;
-        for &temp in self.temperatures.iter() {
+        for &temp in &self.temperatures {
             let bytes = temp.to_be_bytes();
             buffer[i..i + 2].copy_from_slice(&bytes);
             i += 2;
