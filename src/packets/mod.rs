@@ -18,6 +18,7 @@ mod link_statistics_tx;
 mod mavlink_envelope;
 mod mavlink_fc;
 mod rc_channels_packed;
+mod remote;
 mod rpm;
 mod temp;
 mod vario;
@@ -39,6 +40,7 @@ pub use link_statistics_tx::LinkStatisticsTx;
 pub use mavlink_envelope::MavlinkEnvelope;
 pub use mavlink_fc::MavLinkFc;
 pub use rc_channels_packed::RcChannelsPacked;
+pub use remote::Remote;
 pub use rpm::Rpm;
 pub use temp::Temp;
 pub use vario::VariometerSensor;
@@ -91,6 +93,7 @@ pub enum Packet {
     EspNow(EspNow),
     MavlinkEnvelope(MavlinkEnvelope),
     MavLinkFc(MavLinkFc),
+    Remote(Remote),
     NotImlemented(PacketType, usize),
 }
 
