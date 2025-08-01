@@ -3,18 +3,18 @@ use crate::packets::PacketType;
 use crate::CrsfParsingError;
 use heapless::Vec;
 
-/// Represents a CRSF MAVLink Envelope packet (type 0xAA).
+/// Represents a CRSF `MAVLink` Envelope packet (type 0xAA).
 ///
-/// This packet is used to transfer MAVLink protocol frames over CRSF.
-/// Since MAVLink frames can be larger than a single CRSF frame, they are
+/// This packet is used to transfer `MAVLink` protocol frames over CRSF.
+/// Since `MAVLink` frames can be larger than a single CRSF frame, they are
 /// broken up into chunks.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MavlinkEnvelope {
-    /// Total number of chunks for the MAVLink frame.
+    /// Total number of chunks for the `MAVLink` frame.
     pub total_chunks: u8,
     /// The index of the current chunk (0-based).
     pub current_chunk: u8,
-    /// The MAVLink data payload for this chunk.
+    /// The `MAVLink` data payload for this chunk.
     pub data: Vec<u8, 58>,
 }
 
