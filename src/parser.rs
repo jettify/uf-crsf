@@ -161,7 +161,7 @@ impl<'a> RawCrsfPacket<'a> {
         &self.bytes[3..self.bytes.len() - 1]
     }
     pub fn crc(&self) -> u8 {
-        *self.bytes.last().unwrap()
+        *self.bytes.last().expect("infallible due to length check")
     }
 
     pub fn len(&self) -> usize {

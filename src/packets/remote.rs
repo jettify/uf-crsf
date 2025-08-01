@@ -46,9 +46,6 @@ impl CrsfPacket for Remote {
     const MIN_PAYLOAD_SIZE: usize = 2 + 1 + TIMING_CORRECTION_PAYLOAD_SIZE;
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        // The `parse_extended_payload` helper is not used here because `Remote`
-        // is a container for multiple sub-types. We need to dispatch based on
-        // the sub-type manually.
         if data.len() < 3 {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }

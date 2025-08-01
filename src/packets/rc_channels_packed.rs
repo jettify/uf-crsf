@@ -48,13 +48,13 @@ impl CrsfPacket for RcChannelsPacked {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
+        const MASK_11BIT: u16 = 0x07FF;
         let data: [u16; Self::MIN_PAYLOAD_SIZE] = core::array::from_fn(|i| u16::from(data[i]));
 
         if data.len() != Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
-        const MASK_11BIT: u16 = 0x07FF;
         let mut ch = [MASK_11BIT; 16];
         ch[0] &= data[0] | (data[1] << 8);
         ch[1] &= (data[1] >> 3) | (data[2] << 5);
