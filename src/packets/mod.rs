@@ -72,6 +72,7 @@ pub trait CrsfPacket: Sized {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Packet {
     LinkStatistics(LinkStatistics),
     LinkStatisticsRx(LinkStatisticsRx),

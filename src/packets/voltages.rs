@@ -15,6 +15,18 @@ pub struct Voltages {
     pub voltage_values: Vec<u16, 29>,
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for Voltages {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "Voltages {{ voltage_source_id: {}, voltage_values: {} }}",
+            self.voltage_source_id,
+            self.voltage_values.as_slice(),
+        )
+    }
+}
+
 impl CrsfPacket for Voltages {
     const PACKET_TYPE: PacketType = PacketType::Voltages;
     const MIN_PAYLOAD_SIZE: usize = 3;

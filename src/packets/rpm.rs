@@ -17,6 +17,18 @@ pub struct Rpm {
     pub rpm_values: Vec<i32, 19>,
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for Rpm {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "Rpm {{ rpm_source_id: {}, rpm_values: {} }}",
+            self.rpm_source_id,
+            self.rpm_values.as_slice(),
+        )
+    }
+}
+
 impl CrsfPacket for Rpm {
     const PACKET_TYPE: PacketType = PacketType::Rpm;
     const MIN_PAYLOAD_SIZE: usize = 3;
