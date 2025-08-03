@@ -7,6 +7,7 @@ use crc::Crc;
 use num_enum::TryFromPrimitive;
 
 #[derive(Debug, Default, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum State {
     #[default]
     AwaitingSync,

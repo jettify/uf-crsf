@@ -17,6 +17,18 @@ pub struct Temp {
     pub temperatures: Vec<i16, 20>,
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for Temp {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "Temp {{ temp_source_id: {}, temperatures: {} }}",
+            self.temp_source_id,
+            self.temperatures.as_slice(),
+        )
+    }
+}
+
 impl CrsfPacket for Temp {
     const PACKET_TYPE: PacketType = PacketType::Temp;
     const MIN_PAYLOAD_SIZE: usize = 3;

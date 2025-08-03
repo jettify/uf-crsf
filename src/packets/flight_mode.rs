@@ -3,30 +3,42 @@ use crate::packets::PacketType;
 use crate::CrsfParsingError;
 use heapless::String;
 
+const MAX_FLIGHT_MODE_LEN: usize = 59;
+
 /// Represents a Flight Mode packet.
 ///
 /// Contains the flight mode as a null-terminated string.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FlightMode {
     /// The flight mode string.
-    pub flight_mode: String<63>,
+    pub flight_mode: String<MAX_FLIGHT_MODE_LEN>,
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for FlightMode {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "FlightMode {{ flight_mode: {} }}",
+            self.flight_mode.as_str(),
+        )
+    }
 }
 
 impl CrsfPacket for FlightMode {
     const PACKET_TYPE: PacketType = PacketType::FlightMode;
-    const MIN_PAYLOAD_SIZE: usize = 2;
+    // An empty flight mode is a single null byte
+    const MIN_PAYLOAD_SIZE: usize = 1;
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         let bytes = self.flight_mode.as_bytes();
-        let len = bytes.len();
-        let r = if len < buffer.len() {
-            buffer[..len].copy_from_slice(bytes);
-            buffer[len] = 0; // Null terminator
-            len + 1
-        } else {
-            0
-        };
-        Ok(r)
+        let len_with_null = bytes.len() + 1;
+        if buffer.len() < len_with_null {
+            return Err(CrsfParsingError::BufferOverflow);
+        }
+        buffer[..bytes.len()].copy_from_slice(bytes);
+        buffer[bytes.len()] = 0; // Null terminator
+        Ok(len_with_null)
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
@@ -63,11 +75,24 @@ mod tests {
     }
 
     #[test]
+    fn test_flight_mode_to_bytes_buffer_too_small() {
+        let mut flight_mode_str = String::new();
+        flight_mode_str.push_str("LONG FLIGHT MODE").unwrap();
+        let flight_mode = FlightMode {
+            flight_mode: flight_mode_str,
+        };
+
+        let mut buffer = [0u8; 10];
+        let result = flight_mode.to_bytes(&mut buffer);
+        assert!(matches!(result, Err(CrsfParsingError::BufferOverflow)));
+    }
+
+    #[test]
     fn test_flight_mode_from_bytes() {
         let data: [u8; 5] = [b'A', b'C', b'R', b'O', 0];
         let flight_mode = FlightMode::from_bytes(&data).unwrap();
 
-        let mut expected_flight_mode_str: String<63> = String::new();
+        let mut expected_flight_mode_str: String<MAX_FLIGHT_MODE_LEN> = String::new();
         expected_flight_mode_str.push_str("ACRO").unwrap();
         assert_eq!(flight_mode.flight_mode, expected_flight_mode_str);
     }
@@ -77,7 +102,7 @@ mod tests {
         let data: [u8; 4] = [b'A', b'C', b'R', b'O'];
         let flight_mode = FlightMode::from_bytes(&data).unwrap();
 
-        let mut expected_flight_mode_str: String<63> = String::new();
+        let mut expected_flight_mode_str: String<MAX_FLIGHT_MODE_LEN> = String::new();
         expected_flight_mode_str.push_str("ACRO").unwrap();
         assert_eq!(flight_mode.flight_mode, expected_flight_mode_str);
     }
