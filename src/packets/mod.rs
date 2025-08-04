@@ -4,6 +4,7 @@ use crate::parser::RawCrsfPacket;
 use crc;
 
 mod airspeed;
+mod attitude;
 mod baro_altitude;
 mod battery;
 mod esp_now;
@@ -26,6 +27,7 @@ mod voltages;
 mod vtx_telemetry;
 
 pub use airspeed::AirSpeed;
+pub use attitude::Attitude;
 pub use baro_altitude::BaroAltitude;
 pub use battery::Battery;
 pub use esp_now::EspNow;
@@ -95,6 +97,7 @@ pub enum Packet {
     MavlinkEnvelope(MavlinkEnvelope),
     MavLinkFc(MavLinkFc),
     Remote(Remote),
+    Attitude(Attitude),
     NotImlemented(PacketType, usize),
 }
 
@@ -132,6 +135,8 @@ impl Packet {
             EspNow::PACKET_TYPE => Ok(Self::EspNow(EspNow::from_bytes(data)?)),
             Heartbeat::PACKET_TYPE => Ok(Self::Heartbeat(Heartbeat::from_bytes(data)?)),
             MavLinkFc::PACKET_TYPE => Ok(Self::MavLinkFc(MavLinkFc::from_bytes(data)?)),
+            Remote::PACKET_TYPE => Ok(Self::Remote(Remote::from_bytes(data)?)),
+            Attitude::PACKET_TYPE => Ok(Self::Attitude(Attitude::from_bytes(data)?)),
             MavlinkEnvelope::PACKET_TYPE => {
                 Ok(Self::MavlinkEnvelope(MavlinkEnvelope::from_bytes(data)?))
             }
