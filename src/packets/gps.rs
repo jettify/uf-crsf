@@ -121,7 +121,10 @@ mod tests {
     fn test_from_bytes_invalid_len() {
         let raw_bytes: [u8; 14] = [0; 14];
         let result = Gps::from_bytes(&raw_bytes);
-        assert!(matches!(result, Err(CrsfParsingError::InvalidPayloadLength)));
+        assert!(matches!(
+            result,
+            Err(CrsfParsingError::InvalidPayloadLength)
+        ));
     }
 
     #[test]
