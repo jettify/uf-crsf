@@ -7,6 +7,8 @@ mod airspeed;
 mod attitude;
 mod baro_altitude;
 mod battery;
+mod device_information;
+mod device_ping;
 mod esp_now;
 mod flight_mode;
 mod gps;
@@ -30,6 +32,8 @@ pub use airspeed::AirSpeed;
 pub use attitude::Attitude;
 pub use baro_altitude::BaroAltitude;
 pub use battery::Battery;
+pub use device_information::DeviceInformation;
+pub use device_ping::DevicePing;
 pub use esp_now::EspNow;
 pub use flight_mode::FlightMode;
 pub use gps::Gps;
@@ -98,6 +102,8 @@ pub enum Packet {
     MavLinkFc(MavLinkFc),
     Remote(Remote),
     Attitude(Attitude),
+    DeviceInformation(DeviceInformation),
+    DevicePing(DevicePing),
     NotImlemented(PacketType, usize),
 }
 
@@ -137,6 +143,11 @@ impl Packet {
             MavLinkFc::PACKET_TYPE => Ok(Self::MavLinkFc(MavLinkFc::from_bytes(data)?)),
             Remote::PACKET_TYPE => Ok(Self::Remote(Remote::from_bytes(data)?)),
             Attitude::PACKET_TYPE => Ok(Self::Attitude(Attitude::from_bytes(data)?)),
+            DevicePing::PACKET_TYPE => Ok(Self::DevicePing(DevicePing::from_bytes(data)?)),
+            DeviceInformation::PACKET_TYPE => Ok(Self::DeviceInformation(
+                DeviceInformation::from_bytes(data)?,
+            )),
+
             MavlinkEnvelope::PACKET_TYPE => {
                 Ok(Self::MavlinkEnvelope(MavlinkEnvelope::from_bytes(data)?))
             }
