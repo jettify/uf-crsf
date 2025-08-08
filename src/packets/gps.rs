@@ -1,6 +1,7 @@
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
+use core::mem::size_of;
 
 /// Represents a GPS packet (type 0x02).
 #[derive(Clone, Debug, PartialEq)]
@@ -22,7 +23,7 @@ pub struct Gps {
 
 impl CrsfPacket for Gps {
     const PACKET_TYPE: PacketType = PacketType::Gps;
-    const MIN_PAYLOAD_SIZE: usize = 15;
+    const MIN_PAYLOAD_SIZE: usize = 2 * size_of::<i32>() + 3 * size_of::<u16>() + size_of::<u8>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         if buffer.len() < Self::MIN_PAYLOAD_SIZE {
@@ -61,6 +62,7 @@ mod tests {
 
     #[test]
     fn test_gps_from_bytes() {
+        assert_eq!(Gps::MIN_PAYLOAD_SIZE, 15);
         let gps = Gps {
             latitude: 124108701,
             longitude: -276434195,
@@ -121,7 +123,10 @@ mod tests {
     fn test_from_bytes_invalid_len() {
         let raw_bytes: [u8; 14] = [0; 14];
         let result = Gps::from_bytes(&raw_bytes);
-        assert!(matches!(result, Err(CrsfParsingError::InvalidPayloadLength)));
+        assert!(matches!(
+            result,
+            Err(CrsfParsingError::InvalidPayloadLength)
+        ));
     }
 
     #[test]

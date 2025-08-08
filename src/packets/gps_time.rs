@@ -20,7 +20,7 @@ pub struct GpsTime {
 
 impl CrsfPacket for GpsTime {
     const PACKET_TYPE: PacketType = PacketType::GpsTime;
-    const MIN_PAYLOAD_SIZE: usize = 9;
+    const MIN_PAYLOAD_SIZE: usize = size_of::<i16>() + 5 * size_of::<u8>() + size_of::<u16>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         self.validate_buffer_size(buffer)?;
@@ -57,6 +57,7 @@ mod tests {
 
     #[test]
     fn test_gps_time_to_bytes() {
+        assert_eq!(GpsTime::MIN_PAYLOAD_SIZE, 9);
         let gps_time = GpsTime {
             year: 2024,
             month: 10,

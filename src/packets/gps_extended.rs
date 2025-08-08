@@ -34,7 +34,7 @@ pub struct GpsExtended {
 
 impl CrsfPacket for GpsExtended {
     const PACKET_TYPE: PacketType = PacketType::GpsExtended;
-    const MIN_PAYLOAD_SIZE: usize = 20;
+    const MIN_PAYLOAD_SIZE: usize = 4 * size_of::<u8>() + (4 + 4) * size_of::<i16>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         self.validate_buffer_size(buffer)?;
@@ -81,6 +81,7 @@ mod tests {
 
     #[test]
     fn test_gps_extended_to_bytes() {
+        assert_eq!(GpsExtended::MIN_PAYLOAD_SIZE, 20);
         let gps_extended = GpsExtended {
             fix_type: 1,
             n_speed: 2,
