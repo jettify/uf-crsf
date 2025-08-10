@@ -33,7 +33,9 @@ pub struct LinkStatistics {
 
 impl CrsfPacket for LinkStatistics {
     const PACKET_TYPE: PacketType = PacketType::LinkStatistics;
-    const MIN_PAYLOAD_SIZE: usize = 10;
+    // there are 8 fields for u8 linter has false positive that code tries
+    // to get number of bits.
+    const MIN_PAYLOAD_SIZE: usize = (3 + 5) * size_of::<u8>() + 2 * size_of::<i8>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         self.validate_buffer_size(buffer)?;
@@ -76,6 +78,7 @@ mod tests {
 
     #[test]
     fn test_link_statistics_to_bytes() {
+        assert_eq!(LinkStatistics::MIN_PAYLOAD_SIZE, 10);
         let link_statistics = LinkStatistics {
             uplink_rssi_1: 100,
             uplink_rssi_2: 75,

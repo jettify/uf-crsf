@@ -16,7 +16,7 @@ pub struct RcChannelsPacked(pub [u16; 16]);
 
 impl CrsfPacket for RcChannelsPacked {
     const PACKET_TYPE: PacketType = PacketType::RcChannelsPacked;
-    const MIN_PAYLOAD_SIZE: usize = 22;
+    const MIN_PAYLOAD_SIZE: usize = 16 * 11 / 8; // 16 channels, 11 bit each
 
     #[allow(clippy::cast_possible_truncation)]
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
