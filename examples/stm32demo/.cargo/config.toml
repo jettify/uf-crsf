@@ -1,0 +1,14 @@
+# This file was automatically generated.
+
+[target.thumbv7em-none-eabihf]
+runner = 'probe-rs run --chip STM32F411CEUx'
+
+[build]
+target = "thumbv7em-none-eabihf"
+
+[env]
+DEFMT_LOG = "trace"
+
+[unstable]
+build-std = ["core"]
+build-std-features = ["panic_immediate_abort"]
