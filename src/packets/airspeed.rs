@@ -14,7 +14,7 @@ pub struct AirSpeed {
 
 impl CrsfPacket for AirSpeed {
     const PACKET_TYPE: PacketType = PacketType::AirSpeed;
-    const MIN_PAYLOAD_SIZE: usize = 2;
+    const MIN_PAYLOAD_SIZE: usize = size_of::<u16>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         self.validate_buffer_size(buffer)?;
@@ -39,6 +39,7 @@ mod tests {
 
     #[test]
     fn test_airspeed_to_bytes() {
+        assert_eq!(AirSpeed::MIN_PAYLOAD_SIZE, 2);
         let airspeed = AirSpeed { speed: 1234 };
         let mut buffer = [0u8; AirSpeed::MIN_PAYLOAD_SIZE];
         let _ = airspeed.to_bytes(&mut buffer);

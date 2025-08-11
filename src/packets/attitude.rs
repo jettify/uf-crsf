@@ -46,6 +46,7 @@ mod tests {
 
     #[test]
     fn test_attitude_from_bytes() {
+        assert_eq!(Attitude::MIN_PAYLOAD_SIZE, 6);
         let data: [u8; 6] = [
             0x01, 0x02, // pitch
             0x03, 0x04, // roll

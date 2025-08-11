@@ -11,7 +11,7 @@ pub struct Heartbeat {
 }
 
 impl CrsfPacket for Heartbeat {
-    const MIN_PAYLOAD_SIZE: usize = 2;
+    const MIN_PAYLOAD_SIZE: usize = size_of::<i16>();
     const PACKET_TYPE: PacketType = PacketType::Heartbeat;
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
