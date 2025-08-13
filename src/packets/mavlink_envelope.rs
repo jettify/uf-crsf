@@ -14,7 +14,7 @@ pub struct MavlinkEnvelope {
     pub total_chunks: u8,
     /// The index of the current chunk (0-based).
     pub current_chunk: u8,
-    /// The `MAVLink` data payload for this chunk.
+    /// The MAVLink data payload for this chunk.
     pub data: Vec<u8, 58>,
 }
 

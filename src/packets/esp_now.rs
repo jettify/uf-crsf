@@ -20,7 +20,8 @@ pub struct EspNow {
 
 impl CrsfPacket for EspNow {
     const PACKET_TYPE: PacketType = PacketType::EspNow;
-    const MIN_PAYLOAD_SIZE: usize = 52;
+    const MIN_PAYLOAD_SIZE: usize =
+        2 * size_of::<u8>() + 2 * size_of::<[u8; 15]>() + size_of::<[u8; 20]>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         self.validate_buffer_size(buffer)?;
@@ -62,6 +63,7 @@ mod tests {
 
     #[test]
     fn test_esp_now_to_bytes() {
+        assert_eq!(EspNow::MIN_PAYLOAD_SIZE, 52);
         let esp_now = EspNow {
             val1: 10,
             val2: 20,

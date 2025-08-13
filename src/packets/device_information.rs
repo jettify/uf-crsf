@@ -3,8 +3,8 @@ use crate::CrsfParsingError;
 use heapless::String;
 
 const MAX_DEVICE_NAME_LEN: usize = 43;
-const EXTENDED_HEADER_SIZE: usize = 2;
-const FIXED_FIELDS_SIZE: usize = 14;
+const EXTENDED_HEADER_SIZE: usize = 2 * size_of::<u8>();
+const FIXED_FIELDS_SIZE: usize = 3 * size_of::<u32>() + 2 * size_of::<u8>();
 
 /// Represents a Device Information packet (0x29).
 #[derive(Clone, Debug, PartialEq, Eq)]

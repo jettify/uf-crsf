@@ -18,7 +18,8 @@ pub struct Battery {
 
 impl CrsfPacket for Battery {
     const PACKET_TYPE: PacketType = PacketType::BatterySensor;
-    const MIN_PAYLOAD_SIZE: usize = 8;
+    // 24 bit (3 bytes) unpacked into u32 (4 bytes)
+    const MIN_PAYLOAD_SIZE: usize = 2 * size_of::<i16>() + 3 + size_of::<u8>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         self.validate_buffer_size(buffer)?;
@@ -59,6 +60,7 @@ mod tests {
 
     #[test]
     fn test_battery_to_bytes() {
+        assert_eq!(Battery::MIN_PAYLOAD_SIZE, 8);
         let battery = Battery {
             voltage: 12345,
             current: -1000,

@@ -63,7 +63,7 @@ const KR: f32 = 0.026; // range constant
 
 impl CrsfPacket for BaroAltitude {
     const PACKET_TYPE: PacketType = PacketType::BaroAltitude;
-    const MIN_PAYLOAD_SIZE: usize = 3;
+    const MIN_PAYLOAD_SIZE: usize = size_of::<u16>() + size_of::<i8>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         if buffer.len() != Self::MIN_PAYLOAD_SIZE {
@@ -186,6 +186,7 @@ mod tests {
 
     #[test]
     fn test_baro_altitude_from_bytes() {
+        assert_eq!(BaroAltitude::MIN_PAYLOAD_SIZE, 3);
         let data: [u8; BaroAltitude::MIN_PAYLOAD_SIZE] = [
             0x30, 0x39, // altitude_packed: 12345
             0xce, // vertical_speed_packed: -50
