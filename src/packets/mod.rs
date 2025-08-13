@@ -11,6 +11,7 @@ mod device_information;
 mod device_ping;
 mod esp_now;
 mod flight_mode;
+mod game;
 mod gps;
 mod gps_extended;
 mod gps_time;
@@ -36,6 +37,7 @@ pub use device_information::DeviceInformation;
 pub use device_ping::DevicePing;
 pub use esp_now::EspNow;
 pub use flight_mode::FlightMode;
+pub use game::Game;
 pub use gps::Gps;
 pub use gps_extended::GpsExtended;
 pub use gps_time::GpsTime;
@@ -104,6 +106,7 @@ pub enum Packet {
     Attitude(Attitude),
     DeviceInformation(DeviceInformation),
     DevicePing(DevicePing),
+    Game(Game),
     NotImlemented(PacketType, usize),
 }
 
@@ -144,6 +147,7 @@ impl Packet {
             Remote::PACKET_TYPE => Ok(Self::Remote(Remote::from_bytes(data)?)),
             Attitude::PACKET_TYPE => Ok(Self::Attitude(Attitude::from_bytes(data)?)),
             DevicePing::PACKET_TYPE => Ok(Self::DevicePing(DevicePing::from_bytes(data)?)),
+            Game::PACKET_TYPE => Ok(Self::Game(Game::from_bytes(data)?)),
             DeviceInformation::PACKET_TYPE => Ok(Self::DeviceInformation(
                 DeviceInformation::from_bytes(data)?,
             )),
@@ -200,6 +204,7 @@ pub enum PacketType {
     MspWrite = 0x7C,
     ArdupilotResponse = 0x80,
     MavlinkEnvelope = 0xAA,
+    Game = 0x3C,
 }
 
 impl PacketType {
