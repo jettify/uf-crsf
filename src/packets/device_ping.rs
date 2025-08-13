@@ -11,7 +11,7 @@ pub struct DevicePing {
 
 impl CrsfPacket for DevicePing {
     const PACKET_TYPE: PacketType = PacketType::DevicePing;
-    const MIN_PAYLOAD_SIZE: usize = 2;
+    const MIN_PAYLOAD_SIZE: usize = 2 * size_of::<u8>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         buffer[0] = self.dst_addr;
