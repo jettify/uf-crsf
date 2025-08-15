@@ -51,7 +51,7 @@ impl CrsfParser {
                     ParseResult::Incomplete
                 } else {
                     self.state = State::AwaitingSync;
-                    ParseResult::Error(CrsfStreamError::InvalidSync)
+                    ParseResult::Error(CrsfStreamError::InvalidSync(byte))
                 }
             }
             State::AwaitingLenth => {
@@ -60,7 +60,7 @@ impl CrsfParser {
                 if !(constants::CRSF_MIN_PACKET_SIZE..constants::CRSF_MAX_PACKET_SIZE).contains(&n)
                 {
                     self.reset();
-                    return ParseResult::Error(CrsfStreamError::InvalidPacketLength);
+                    return ParseResult::Error(CrsfStreamError::InvalidPacketLength(byte));
                 }
                 self.position = 1;
                 self.buffer[self.position] = byte;
@@ -97,7 +97,7 @@ impl CrsfParser {
                 let bytes = &self.buffer[start..end];
                 match RawCrsfPacket::new(bytes) {
                     Some(packet) => ParseResult::Complete(packet),
-                    None => ParseResult::Error(CrsfStreamError::InvalidPacketLength),
+                    None => ParseResult::Error(CrsfStreamError::InputBufferTooSmall),
                 }
             }
         }
