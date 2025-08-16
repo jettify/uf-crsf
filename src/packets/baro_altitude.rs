@@ -47,14 +47,14 @@ impl BaroAltitude {
     }
 
     pub fn get_vertical_speed_packed(vertical_speed_cm_s: i16) -> i8 {
-        (logf((vertical_speed_cm_s.abs() as f32) / KL + 1.0) / KR
-            * (vertical_speed_cm_s.signum() as f32)) as i8
+        (logf((f32::from(vertical_speed_cm_s.abs())) / KL + 1.0) / KR
+            * (f32::from(vertical_speed_cm_s.signum()))) as i8
     }
 
     pub fn get_vertical_speed_cm_s(&self) -> i16 {
-        ((powf(E, (self.vertical_speed_packed.abs() as f32) * KR) - 1.0)
+        ((powf(E, (f32::from(self.vertical_speed_packed.abs())) * KR) - 1.0)
             * KL
-            * (self.vertical_speed_packed.signum() as f32)) as i16
+            * (f32::from(self.vertical_speed_packed.signum()))) as i16
     }
 }
 
