@@ -15,6 +15,7 @@ impl CrsfPacket for Heartbeat {
     const PACKET_TYPE: PacketType = PacketType::Heartbeat;
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0..2].copy_from_slice(&self.origin_address.to_be_bytes());
         Ok(Self::MIN_PAYLOAD_SIZE)
     }
