@@ -251,6 +251,7 @@ pub fn write_packet_to_buffer<T: CrsfPacket>(
     packet: &T,
 ) -> Result<usize, CrsfParsingError> {
     const MAX_PAYLOAD_SIZE: usize = constants::CRSF_MAX_PACKET_SIZE - 4;
+    static CRC8_DVB_S2: crc::Crc<u8> = crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2);
     let mut payload_buf = [0u8; MAX_PAYLOAD_SIZE];
 
     let payload_size = packet.to_bytes(&mut payload_buf)?;
@@ -270,8 +271,7 @@ pub fn write_packet_to_buffer<T: CrsfPacket>(
 
     // CRC is calculated over type and payload
     let crc_payload = &buffer[2..3 + payload_size];
-    let crc8_dvb_s2 = crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2);
-    let mut digest = crc8_dvb_s2.digest();
+    let mut digest = CRC8_DVB_S2.digest();
     digest.update(crc_payload);
     let calculated_crc = digest.finalize();
 

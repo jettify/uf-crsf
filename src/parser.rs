@@ -161,6 +161,8 @@ impl<'a> RawCrsfPacket<'a> {
         // XXX
         &self.bytes[3..self.bytes.len() - 1]
     }
+
+    #[expect(clippy::missing_panics_doc, reason = "infallible")]
     pub fn crc(&self) -> u8 {
         *self.bytes.last().expect("infallible due to length check")
     }
