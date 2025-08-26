@@ -2,7 +2,7 @@
 
 [![Rust](https://github.com/jettify/uf-crsf/actions/workflows/CI.yml/badge.svg)](https://github.com/jettify/uf-crsf/actions/workflows/CI.yml)
 
-A `no_std` Rust library for parsing the TBS Crossfire protocol, designed for embedded (`no_std`) environments without an allocator.
+A `no_std` Rust library for parsing the TBS Crossfire protocol, designed for embedded environments without an allocator.
 
 This library provides a two-layer API:
 
