@@ -2,6 +2,8 @@
 name = "uf-crsf"
 version = "0.1.0"
 edition = "2021"
+
+description = "A `no_std` Rust library for parsing the TBS Crossfire protocol, designed for embedded environments"
 categories = [
   "embedded",
   "no-std",
@@ -11,6 +13,9 @@ categories = [
 ]
 authors = ["Nickolai Novik <nickolainovik@gmail.com>"]
 license = "Apache-2.0"
+homepage = "https://github/jettify/uf-crsf"
+repository = "https://github/jettify/uf-crsf"
+readme = "README.md"
 
 [dependencies]
 crc = "3.3.0"
