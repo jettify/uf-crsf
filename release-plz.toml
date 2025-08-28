@@ -1,0 +1,11 @@
+[changelog]
+commit_preprocessors = [
+  # Replace the issue number with the link.
+  { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/jettify/uf-crsf/issues/${1}))" },
+]
+
+link_parsers = [
+  # Extract all GitHub issues and PRs and generate URLs linking to them.
+  # The link text will be the matching pattern.
+  { pattern = "#(\\d+)", href = "https://github.com/jettify/uf-crsf/issues/$1" },
+]
