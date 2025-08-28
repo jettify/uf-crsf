@@ -7,6 +7,7 @@ mod airspeed;
 mod attitude;
 mod baro_altitude;
 mod battery;
+mod commands;
 mod device_information;
 mod device_ping;
 mod esp_now;
@@ -33,6 +34,7 @@ pub use airspeed::AirSpeed;
 pub use attitude::Attitude;
 pub use baro_altitude::BaroAltitude;
 pub use battery::Battery;
+pub use commands::DirectCommands;
 pub use device_information::DeviceInformation;
 pub use device_ping::DevicePing;
 pub use esp_now::EspNow;
@@ -108,6 +110,7 @@ pub enum Packet {
     DevicePing(DevicePing),
     Game(Game),
     NotImlemented(PacketType, usize),
+    Commands(DirectCommands),
 }
 
 impl Packet {
@@ -155,6 +158,7 @@ impl Packet {
             MavlinkEnvelope::PACKET_TYPE => {
                 Ok(Self::MavlinkEnvelope(MavlinkEnvelope::from_bytes(data)?))
             }
+            DirectCommands::PACKET_TYPE => Ok(Self::Commands(DirectCommands::from_bytes(data)?)),
             _ => Ok(Packet::NotImlemented(
                 packet_type,
                 raw_packet.payload().len(),
