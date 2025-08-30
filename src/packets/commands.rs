@@ -199,6 +199,9 @@ impl CrsfPacket for DirectCommands {
     }
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        if buffer.len() < 3 {
+            return Err(CrsfParsingError::BufferOverflow);
+        }
         buffer[0] = self.dst_addr;
         buffer[1] = self.src_addr;
         buffer[2] = self.payload.command_id();
@@ -247,12 +250,14 @@ impl CommandPayload {
 
 impl FcCommand {
     fn write_to(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
-        let (sub_command_id, len) = match self {
-            FcCommand::ForceDisarm => (SUB_COMMAND_ID_FC_FORCE_DISARM, 1),
-            FcCommand::ScaleChannel => (SUB_COMMAND_ID_FC_SCALE_CHANNEL, 1),
+        if buffer.is_empty() {
+            return Err(CrsfParsingError::BufferOverflow);
+        }
+        buffer[0] = match self {
+            FcCommand::ForceDisarm => SUB_COMMAND_ID_FC_FORCE_DISARM,
+            FcCommand::ScaleChannel => SUB_COMMAND_ID_FC_SCALE_CHANNEL,
         };
-        buffer[0] = sub_command_id;
-        Ok(len)
+        Ok(1)
     }
 }
 
@@ -260,6 +265,9 @@ impl<'a> TryFrom<&'a [u8]> for FcCommand {
     type Error = CrsfParsingError;
 
     fn try_from(data: &'a [u8]) -> Result<Self, Self::Error> {
+        if data.is_empty() {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         let sub_command_id = data[0];
         match sub_command_id {
             SUB_COMMAND_ID_FC_FORCE_DISARM => Ok(FcCommand::ForceDisarm),
@@ -273,6 +281,9 @@ impl OsdCommand {
     fn write_to(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         match self {
             OsdCommand::SendButtons(buttons) => {
+                if buffer.len() < 2 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_OSD_SEND_BUTTONS;
                 buffer[1] = *buttons;
                 Ok(2)
@@ -285,9 +296,17 @@ impl<'a> TryFrom<&'a [u8]> for OsdCommand {
     type Error = CrsfParsingError;
 
     fn try_from(data: &'a [u8]) -> Result<Self, Self::Error> {
+        if data.is_empty() {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         let sub_command_id = data[0];
         match sub_command_id {
-            SUB_COMMAND_ID_OSD_SEND_BUTTONS => Ok(OsdCommand::SendButtons(data[1])),
+            SUB_COMMAND_ID_OSD_SEND_BUTTONS => {
+                if data.len() < 2 {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
+                Ok(OsdCommand::SendButtons(data[1]))
+            }
             _ => Err(CrsfParsingError::InvalidPayload),
         }
     }
@@ -297,6 +316,9 @@ impl VtxCommand {
     fn write_to(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         match self {
             VtxCommand::SetFrequency(freq) => {
+                if buffer.len() < 3 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_VTX_SET_FREQUENCY;
                 buffer[1..3].copy_from_slice(&freq.to_be_bytes());
                 Ok(3)
@@ -306,20 +328,32 @@ impl VtxCommand {
                 pit_mode_control,
                 pit_mode_switch,
             } => {
+                if buffer.len() < 2 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_VTX_ENABLE_PIT_MODE_ON_POWER_UP;
                 buffer[1] = (*pit_mode as u8) | (pit_mode_control << 1) | (pit_mode_switch << 3);
                 Ok(2)
             }
             VtxCommand::PowerUpFromPitMode => {
+                if buffer.is_empty() {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_VTX_POWER_UP_FROM_PIT_MODE;
                 Ok(1)
             }
             VtxCommand::SetDynamicPower(power) => {
+                if buffer.len() < 2 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_VTX_SET_DYNAMIC_POWER;
                 buffer[1] = *power;
                 Ok(2)
             }
             VtxCommand::SetPower(power) => {
+                if buffer.len() < 2 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_VTX_SET_POWER;
                 buffer[1] = *power;
                 Ok(2)
@@ -332,16 +366,25 @@ impl<'a> TryFrom<&'a [u8]> for VtxCommand {
     type Error = CrsfParsingError;
 
     fn try_from(data: &'a [u8]) -> Result<Self, Self::Error> {
+        if data.is_empty() {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         let sub_command_id = data[0];
         let payload = &data[1..];
         match sub_command_id {
             SUB_COMMAND_ID_VTX_SET_FREQUENCY => {
+                if payload.len() < 2 {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
                 let freq_bytes: [u8; 2] = payload[0..2]
                     .try_into()
                     .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
                 Ok(VtxCommand::SetFrequency(u16::from_be_bytes(freq_bytes)))
             }
             SUB_COMMAND_ID_VTX_ENABLE_PIT_MODE_ON_POWER_UP => {
+                if payload.is_empty() {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
                 let byte = payload[0];
                 Ok(VtxCommand::EnablePitModeOnPowerUp {
                     pit_mode: (byte & 0b1) != 0,
@@ -350,8 +393,18 @@ impl<'a> TryFrom<&'a [u8]> for VtxCommand {
                 })
             }
             SUB_COMMAND_ID_VTX_POWER_UP_FROM_PIT_MODE => Ok(VtxCommand::PowerUpFromPitMode),
-            SUB_COMMAND_ID_VTX_SET_DYNAMIC_POWER => Ok(VtxCommand::SetDynamicPower(payload[0])),
-            SUB_COMMAND_ID_VTX_SET_POWER => Ok(VtxCommand::SetPower(payload[0])),
+            SUB_COMMAND_ID_VTX_SET_DYNAMIC_POWER => {
+                if payload.is_empty() {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
+                Ok(VtxCommand::SetDynamicPower(payload[0]))
+            }
+            SUB_COMMAND_ID_VTX_SET_POWER => {
+                if payload.is_empty() {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
+                Ok(VtxCommand::SetPower(payload[0]))
+            }
             _ => Err(CrsfParsingError::InvalidPayload),
         }
     }
@@ -359,6 +412,9 @@ impl<'a> TryFrom<&'a [u8]> for VtxCommand {
 
 impl CrossfireCommand {
     fn write_to(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        if buffer.is_empty() {
+            return Err(CrsfParsingError::BufferOverflow);
+        }
         match self {
             CrossfireCommand::SetReceiverInBindMode => {
                 buffer[0] = SUB_COMMAND_ID_CROSSFIRE_SET_RECEIVER_IN_BIND_MODE;
@@ -373,6 +429,9 @@ impl CrossfireCommand {
                 Ok(1)
             }
             CrossfireCommand::ModelSelection(model) => {
+                if buffer.len() < 2 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_CROSSFIRE_MODEL_SELECTION;
                 buffer[1] = *model;
                 Ok(2)
@@ -382,6 +441,9 @@ impl CrossfireCommand {
                 Ok(1)
             }
             CrossfireCommand::ReplyCurrentModelSelection(model) => {
+                if buffer.len() < 2 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_CROSSFIRE_REPLY_CURRENT_MODEL_SELECTION;
                 buffer[1] = *model;
                 Ok(2)
@@ -394,6 +456,9 @@ impl<'a> TryFrom<&'a [u8]> for CrossfireCommand {
     type Error = CrsfParsingError;
 
     fn try_from(data: &'a [u8]) -> Result<Self, Self::Error> {
+        if data.is_empty() {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         let sub_command_id = data[0];
         let payload = &data[1..];
         match sub_command_id {
@@ -403,12 +468,18 @@ impl<'a> TryFrom<&'a [u8]> for CrossfireCommand {
             SUB_COMMAND_ID_CROSSFIRE_CANCEL_BIND_MODE => Ok(CrossfireCommand::CancelBindMode),
             SUB_COMMAND_ID_CROSSFIRE_SET_BIND_ID => Ok(CrossfireCommand::SetBindId),
             SUB_COMMAND_ID_CROSSFIRE_MODEL_SELECTION => {
+                if payload.is_empty() {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
                 Ok(CrossfireCommand::ModelSelection(payload[0]))
             }
             SUB_COMMAND_ID_CROSSFIRE_CURRENT_MODEL_SELECTION => {
                 Ok(CrossfireCommand::CurrentModelSelection)
             }
             SUB_COMMAND_ID_CROSSFIRE_REPLY_CURRENT_MODEL_SELECTION => {
+                if payload.is_empty() {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
                 Ok(CrossfireCommand::ReplyCurrentModelSelection(payload[0]))
             }
             _ => Err(CrsfParsingError::InvalidPayload),
@@ -423,12 +494,18 @@ impl FlowControlCommand {
                 frame_type,
                 max_interval_time,
             } => {
+                if buffer.len() < 4 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_FLOW_CONTROL_SUBSCRIBE;
                 buffer[1] = *frame_type;
                 buffer[2..4].copy_from_slice(&max_interval_time.to_be_bytes());
                 Ok(4)
             }
             FlowControlCommand::Unsubscribe { frame_type } => {
+                if buffer.len() < 2 {
+                    return Err(CrsfParsingError::BufferOverflow);
+                }
                 buffer[0] = SUB_COMMAND_ID_FLOW_CONTROL_UNSUBSCRIBE;
                 buffer[1] = *frame_type;
                 Ok(2)
@@ -441,10 +518,16 @@ impl<'a> TryFrom<&'a [u8]> for FlowControlCommand {
     type Error = CrsfParsingError;
 
     fn try_from(data: &'a [u8]) -> Result<Self, Self::Error> {
+        if data.is_empty() {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
         let sub_command_id = data[0];
         let payload = &data[1..];
         match sub_command_id {
             SUB_COMMAND_ID_FLOW_CONTROL_SUBSCRIBE => {
+                if payload.len() < 3 {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
                 let max_interval_time_bytes: [u8; 2] = payload[1..3]
                     .try_into()
                     .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
@@ -453,9 +536,14 @@ impl<'a> TryFrom<&'a [u8]> for FlowControlCommand {
                     max_interval_time: u16::from_be_bytes(max_interval_time_bytes),
                 })
             }
-            SUB_COMMAND_ID_FLOW_CONTROL_UNSUBSCRIBE => Ok(FlowControlCommand::Unsubscribe {
-                frame_type: payload[0],
-            }),
+            SUB_COMMAND_ID_FLOW_CONTROL_UNSUBSCRIBE => {
+                if payload.is_empty() {
+                    return Err(CrsfParsingError::InvalidPayloadLength);
+                }
+                Ok(FlowControlCommand::Unsubscribe {
+                    frame_type: payload[0],
+                })
+            }
             _ => Err(CrsfParsingError::InvalidPayload),
         }
     }
@@ -501,6 +589,10 @@ mod tests {
         let len = packet.to_bytes(&mut buffer).unwrap();
         let round_trip = DirectCommands::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(packet, &round_trip);
+        // make sure buffer overflow handled as proper error
+        let mut small_buffer = [0u8; 3];
+        let result = packet.to_bytes(&mut small_buffer);
+        assert!(matches!(result, Err(CrsfParsingError::BufferOverflow)));
     }
 
     #[test]
@@ -570,5 +662,18 @@ mod tests {
         let data: [u8; 5] = [0xC8, 0xEA, 0x01, 0x01, 0x00]; // wrong crc
         let result = DirectCommands::from_bytes(&data);
         assert!(matches!(result, Err(CrsfParsingError::InvalidPayload)));
+    }
+
+    #[test]
+    fn test_small_buffer() {
+        let packet = DirectCommands {
+            dst_addr: 0xC8,
+            src_addr: 0xEA,
+            payload: CommandPayload::Fc(FcCommand::ForceDisarm),
+        };
+
+        let mut buffer = [0u8; 2];
+        let result = packet.to_bytes(&mut buffer);
+        assert!(matches!(result, Err(CrsfParsingError::BufferOverflow)));
     }
 }
