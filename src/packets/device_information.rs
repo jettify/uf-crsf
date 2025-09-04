@@ -91,7 +91,7 @@ impl CrsfPacket for DeviceInformation {
         let mut device_name = String::new();
         device_name
             .push_str(s)
-            .map_err(|()| CrsfParsingError::InvalidPayloadLength)?;
+            .map_err(|_e| CrsfParsingError::InvalidPayloadLength)?;
 
         let mut offset = null_pos + 1;
         if payload.len() < offset + FIXED_FIELDS_SIZE {

@@ -66,7 +66,7 @@ impl CrsfPacket for MavlinkEnvelope {
         let mut payload_data = Vec::new();
         payload_data
             .extend_from_slice(&data[2..2 + data_size])
-            .map_err(|()| CrsfParsingError::InvalidPayloadLength)?;
+            .map_err(|_e| CrsfParsingError::InvalidPayloadLength)?;
 
         Ok(Self {
             total_chunks,
