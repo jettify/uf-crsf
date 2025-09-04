@@ -48,7 +48,7 @@ impl CrsfPacket for FlightMode {
         let mut flight_mode = String::new();
         flight_mode
             .push_str(s)
-            .map_err(|()| CrsfParsingError::InvalidPayloadLength)?;
+            .map_err(|_e| CrsfParsingError::InvalidPayloadLength)?;
         Ok(Self { flight_mode })
     }
 }
