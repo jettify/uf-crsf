@@ -1,5 +1,6 @@
 use crate::packets::{CrsfPacket, PacketType};
 use crate::CrsfParsingError;
+use core::mem::size_of;
 use heapless::String;
 
 const MAX_DEVICE_NAME_LEN: usize = 43;
@@ -11,12 +12,49 @@ const FIXED_FIELDS_SIZE: usize = 3 * size_of::<u32>() + 2 * size_of::<u8>();
 pub struct DeviceInformation {
     pub dst_addr: u8,
     pub src_addr: u8,
-    pub device_name: String<MAX_DEVICE_NAME_LEN>,
+    device_name: String<MAX_DEVICE_NAME_LEN>,
     pub serial_number: u32,
     pub hardware_id: u32,
     pub firmware_id: u32,
     pub parameters_total: u8,
     pub parameter_version_number: u8,
+}
+
+impl DeviceInformation {
+    /// Creates a new DeviceInformation packet.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        dst_addr: u8,
+        src_addr: u8,
+        device_name: &str,
+        serial_number: u32,
+        hardware_id: u32,
+        firmware_id: u32,
+        parameters_total: u8,
+        parameter_version_number: u8,
+    ) -> Result<Self, CrsfParsingError> {
+        if device_name.len() > MAX_DEVICE_NAME_LEN {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+        let mut s = String::new();
+        s.push_str(device_name)
+            .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        Ok(Self {
+            dst_addr,
+            src_addr,
+            device_name: s,
+            serial_number,
+            hardware_id,
+            firmware_id,
+            parameters_total,
+            parameter_version_number,
+        })
+    }
+
+    /// Returns the device name as a string slice.
+    pub fn device_name(&self) -> &str {
+        self.device_name.as_str()
+    }
 }
 
 #[cfg(feature = "defmt")]
@@ -27,7 +65,7 @@ impl defmt::Format for DeviceInformation {
             "DeviceInformation {{ dst_addr: {=u8}, src_addrs: {=u8}, device_name: {}, serial_number: {=u32}, hardware_id: {=u32}, firmware_id: {=u32}, parameters_total: {=u8}, parameter_version_number: {=u8} }}",
             self.dst_addr,
             self.src_addr,
-            self.device_name.as_str(),
+            self.device_name(),
             self.serial_number,
             self.hardware_id,
             self.firmware_id,
@@ -43,7 +81,7 @@ impl CrsfPacket for DeviceInformation {
     const MIN_PAYLOAD_SIZE: usize = EXTENDED_HEADER_SIZE + 1 + FIXED_FIELDS_SIZE;
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
-        let name_bytes = self.device_name.as_bytes();
+        let name_bytes = self.device_name().as_bytes();
         let name_len = name_bytes.len();
         let payload_len = EXTENDED_HEADER_SIZE + name_len + 1 + FIXED_FIELDS_SIZE;
 
@@ -127,18 +165,17 @@ mod tests {
 
     #[test]
     fn test_device_information_to_bytes() {
-        let mut device_name = String::new();
-        device_name.push_str("TBS Tracer").unwrap();
-        let info = DeviceInformation {
-            dst_addr: 0xEA,
-            src_addr: 0xEE,
-            device_name,
-            serial_number: 0x12345678,
-            hardware_id: 0xABCDEF01,
-            firmware_id: 0x98765432,
-            parameters_total: 42,
-            parameter_version_number: 5,
-        };
+        let info = DeviceInformation::new(
+            0xEA,
+            0xEE,
+            "TBS Tracer",
+            0x12345678,
+            0xABCDEF01,
+            0x98765432,
+            42,
+            5,
+        )
+        .unwrap();
 
         let mut buffer = [0u8; 60];
         let len = info.to_bytes(&mut buffer).unwrap();
@@ -171,12 +208,9 @@ mod tests {
             b"\xEA\xEE\nTBS Tracer\0\x12\x34\x56\x78\xAB\xCD\xEF\x01\x98\x76\x54\x32\x2A\x05";
         let info = DeviceInformation::from_bytes(data).unwrap();
 
-        let mut expected_name: String<MAX_DEVICE_NAME_LEN> = String::new();
-        expected_name.push_str("\nTBS Tracer").unwrap();
-
         assert_eq!(info.dst_addr, 0xEA);
         assert_eq!(info.src_addr, 0xEE);
-        assert_eq!(info.device_name, expected_name);
+        assert_eq!(info.device_name(), "\nTBS Tracer");
         assert_eq!(info.serial_number, 0x12345678);
         assert_eq!(info.hardware_id, 0xABCDEF01);
         assert_eq!(info.firmware_id, 0x98765432);
@@ -186,18 +220,7 @@ mod tests {
 
     #[test]
     fn test_device_information_round_trip() {
-        let mut device_name = String::new();
-        device_name.push_str("MyDevice").unwrap();
-        let info = DeviceInformation {
-            dst_addr: 0x12,
-            src_addr: 0x34,
-            device_name,
-            serial_number: 1,
-            hardware_id: 2,
-            firmware_id: 3,
-            parameters_total: 4,
-            parameter_version_number: 5,
-        };
+        let info = DeviceInformation::new(0x12, 0x34, "MyDevice", 1, 2, 3, 4, 5).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = info.to_bytes(&mut buffer).unwrap();
