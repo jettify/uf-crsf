@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/jettify/uf-crsf/compare/v0.2.1...v0.3.0) - 2025-09-06
+
+### Fixed
+
+- [**breaking**] Remove heapless from public field to ensure better compatibility with downstream users. ([#47](https://github.com/jettify/uf-crsf/issues/47))
+
+### Other
+
+- Indicate implemented packets in readme. ([#51](https://github.com/jettify/uf-crsf/issues/51))
+- Bump version of heapless. ([#50](https://github.com/jettify/uf-crsf/issues/50))
+- Run security audit on schedule instead on each PR. ([#46](https://github.com/jettify/uf-crsf/issues/46))
+- [**breaking**] Remove heapless::String from public API. ([#48](https://github.com/jettify/uf-crsf/issues/48))
+
 ## [0.2.1](https://github.com/jettify/uf-crsf/compare/v0.2.0...v0.2.1) - 2025-09-04
 
 ### Fixed
