@@ -129,8 +129,36 @@ pub enum FlowControlCommand {
 pub struct CommandAck {
     pub command_id: u8,
     pub sub_command_id: u8,
-    pub action: u8,               // 0 = rejected, 1 = accepted
-    pub information: Vec<u8, 48>, // Variable length string
+    pub action: u8,           // 0 = rejected, 1 = accepted
+    information: Vec<u8, 48>, // Variable length string
+}
+
+impl CommandAck {
+    /// Creates a new CommandAck.
+    pub fn new(
+        command_id: u8,
+        sub_command_id: u8,
+        action: u8,
+        information: &[u8],
+    ) -> Result<Self, CrsfParsingError> {
+        if information.len() > 48 {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+        let mut info = Vec::new();
+        info.extend_from_slice(information)
+            .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        Ok(Self {
+            command_id,
+            sub_command_id,
+            action,
+            information: info,
+        })
+    }
+
+    /// Returns the information payload as a slice.
+    pub fn information(&self) -> &[u8] {
+        &self.information
+    }
 }
 
 #[cfg(feature = "defmt")]
@@ -142,7 +170,7 @@ impl defmt::Format for CommandAck {
             self.command_id,
             self.sub_command_id,
             self.action,
-            self.information.as_slice(),
+            self.information(),
         )
     }
 }
@@ -570,12 +598,15 @@ impl<'a> TryFrom<&'a [u8]> for CommandAck {
         if data.len() < 3 {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
+        let mut information = Vec::new();
+        information
+            .extend_from_slice(&data[3..])
+            .map_err(|_| CrsfParsingError::BufferOverflow)?;
         Ok(CommandAck {
             command_id: data[0],
             sub_command_id: data[1],
             action: data[2],
-            information: Vec::from_slice(&data[3..])
-                .map_err(|_| CrsfParsingError::BufferOverflow)?,
+            information,
         })
     }
 }
@@ -648,12 +679,7 @@ mod tests {
         test_round_trip(&DirectCommands {
             dst_addr: 0xEA,
             src_addr: 0xEE,
-            payload: CommandPayload::Ack(CommandAck {
-                command_id: 0x10,
-                sub_command_id: 0x01,
-                action: 1,
-                information: Vec::from_slice(b"OK").unwrap(),
-            }),
+            payload: CommandPayload::Ack(CommandAck::new(0x10, 0x01, 1, b"OK").unwrap()),
         });
     }
 

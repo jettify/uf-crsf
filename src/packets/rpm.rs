@@ -14,7 +14,33 @@ pub struct Rpm {
     pub rpm_source_id: u8,
     /// 1 to 19 RPM values, with negative ones representing the motor spinning in reverse.
     /// These are 24-bit values.
-    pub rpm_values: Vec<i32, 19>,
+    rpm_values: Vec<i32, 19>,
+}
+
+impl Rpm {
+    /// Creates a new RPM packet from a slice of RPM values.
+    ///
+    /// The number of RPM values must be between 1 and 19.
+    pub fn new(rpm_source_id: u8, rpm_values: &[i32]) -> Result<Self, CrsfParsingError> {
+        if rpm_values.is_empty() || rpm_values.len() > 19 {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+        let mut values = Vec::new();
+        for &rpm in rpm_values {
+            values
+                .push(rpm)
+                .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        }
+        Ok(Self {
+            rpm_source_id,
+            rpm_values: values,
+        })
+    }
+
+    /// Returns the RPM values as a slice.
+    pub fn rpm_values(&self) -> &[i32] {
+        &self.rpm_values
+    }
 }
 
 #[cfg(feature = "defmt")]
@@ -24,7 +50,7 @@ impl defmt::Format for Rpm {
             fmt,
             "Rpm {{ rpm_source_id: {}, rpm_values: {} }}",
             self.rpm_source_id,
-            self.rpm_values.as_slice(),
+            self.rpm_values(),
         )
     }
 }
@@ -36,7 +62,7 @@ impl CrsfPacket for Rpm {
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         buffer[0] = self.rpm_source_id;
         let mut i = 1;
-        for &rpm in &self.rpm_values {
+        for &rpm in self.rpm_values() {
             let bytes = rpm.to_be_bytes();
             buffer[i..i + 3].copy_from_slice(&bytes[1..4]);
             i += 3;
@@ -73,13 +99,8 @@ mod tests {
 
     #[test]
     fn test_rpm_to_bytes() {
-        let mut rpm_values = Vec::new();
-        rpm_values.push(1000).unwrap();
-        rpm_values.push(-2000).unwrap();
-        let rpm = Rpm {
-            rpm_source_id: 1,
-            rpm_values,
-        };
+        let rpm_values = [1000, -2000];
+        let rpm = Rpm::new(1, &rpm_values).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = rpm.to_bytes(&mut buffer).unwrap();
@@ -104,22 +125,15 @@ mod tests {
 
         let rpm = Rpm::from_bytes(&data).unwrap();
 
-        let mut expected_rpm_values: Vec<i32, 19> = Vec::new();
-        expected_rpm_values.push(1000).unwrap();
-        expected_rpm_values.push(-2000).unwrap();
+        let expected_rpm_values = [1000, -2000];
         assert_eq!(rpm.rpm_source_id, 1);
-        assert_eq!(rpm.rpm_values, expected_rpm_values);
+        assert_eq!(rpm.rpm_values(), &expected_rpm_values);
     }
 
     #[test]
     fn test_rpm_round_trip() {
-        let mut rpm_values = Vec::new();
-        rpm_values.push(123456).unwrap();
-        rpm_values.push(-654321).unwrap();
-        let rpm = Rpm {
-            rpm_source_id: 2,
-            rpm_values,
-        };
+        let rpm_values = [123456, -654321];
+        let rpm = Rpm::new(2, &rpm_values).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = rpm.to_bytes(&mut buffer).unwrap();
@@ -131,14 +145,8 @@ mod tests {
 
     #[test]
     fn test_edge_cases() {
-        let mut rpm_values = Vec::new();
-        rpm_values.push(0).unwrap();
-        rpm_values.push(8388607).unwrap(); // max positive
-        rpm_values.push(-8388608).unwrap(); // min negative
-        let rpm = Rpm {
-            rpm_source_id: 3,
-            rpm_values,
-        };
+        let rpm_values = [0, 8388607, -8388608];
+        let rpm = Rpm::new(3, &rpm_values).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = rpm.to_bytes(&mut buffer).unwrap();

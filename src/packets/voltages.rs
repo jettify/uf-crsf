@@ -12,7 +12,31 @@ pub struct Voltages {
     /// Source of the voltages.
     pub voltage_source_id: u8,
     /// Up to 29 voltages in millivolts (e.g., 3.850V = 3850).
-    pub voltage_values: Vec<u16, 29>,
+    voltage_values: Vec<u16, 29>,
+}
+
+impl Voltages {
+    /// Creates a new Voltages packet from a slice of voltage values.
+    ///
+    /// The number of voltage values must be 29 or less.
+    pub fn new(voltage_source_id: u8, voltage_values: &[u16]) -> Result<Self, CrsfParsingError> {
+        if voltage_values.len() > 29 {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+        let mut values = Vec::new();
+        values
+            .extend_from_slice(voltage_values)
+            .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        Ok(Self {
+            voltage_source_id,
+            voltage_values: values,
+        })
+    }
+
+    /// Returns the voltage values as a slice.
+    pub fn voltage_values(&self) -> &[u16] {
+        &self.voltage_values
+    }
 }
 
 #[cfg(feature = "defmt")]
@@ -22,7 +46,7 @@ impl defmt::Format for Voltages {
             fmt,
             "Voltages {{ voltage_source_id: {}, voltage_values: {} }}",
             self.voltage_source_id,
-            self.voltage_values.as_slice(),
+            self.voltage_values(),
         )
     }
 }
@@ -32,10 +56,13 @@ impl CrsfPacket for Voltages {
     const MIN_PAYLOAD_SIZE: usize = 3;
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
-        self.validate_buffer_size(buffer)?;
+        let required_len = 1 + self.voltage_values.len() * 2;
+        if buffer.len() < required_len {
+            return Err(CrsfParsingError::BufferOverflow);
+        }
         buffer[0] = self.voltage_source_id;
         let mut i = 1;
-        for &voltage in &self.voltage_values {
+        for &voltage in self.voltage_values() {
             let bytes = voltage.to_be_bytes();
             buffer[i..i + 2].copy_from_slice(&bytes);
             i += 2;
@@ -69,13 +96,8 @@ mod tests {
 
     #[test]
     fn test_voltages_to_bytes() {
-        let mut voltage_values = Vec::new();
-        voltage_values.push(3850).unwrap();
-        voltage_values.push(3900).unwrap();
-        let voltages = Voltages {
-            voltage_source_id: 0,
-            voltage_values,
-        };
+        let voltage_values = [3850, 3900];
+        let voltages = Voltages::new(0, &voltage_values).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = voltages.to_bytes(&mut buffer).unwrap();
@@ -100,22 +122,15 @@ mod tests {
 
         let voltages = Voltages::from_bytes(&data).unwrap();
 
-        let mut expected_voltage_values: Vec<u16, 29> = Vec::new();
-        expected_voltage_values.push(3850).unwrap();
-        expected_voltage_values.push(3900).unwrap();
+        let expected_voltage_values = [3850, 3900];
         assert_eq!(voltages.voltage_source_id, 0);
-        assert_eq!(voltages.voltage_values, expected_voltage_values);
+        assert_eq!(voltages.voltage_values(), &expected_voltage_values);
     }
 
     #[test]
     fn test_voltages_round_trip() {
-        let mut voltage_values = Vec::new();
-        voltage_values.push(3700).unwrap();
-        voltage_values.push(3800).unwrap();
-        let voltages = Voltages {
-            voltage_source_id: 1,
-            voltage_values,
-        };
+        let voltage_values = [3700, 3800];
+        let voltages = Voltages::new(1, &voltage_values).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = voltages.to_bytes(&mut buffer).unwrap();
@@ -127,15 +142,10 @@ mod tests {
 
     #[test]
     fn test_edge_cases() {
-        let mut voltage_values = Vec::new();
-        voltage_values.push(0).unwrap();
-        voltage_values.push(65535).unwrap(); // max positive
-        let voltages = Voltages {
-            voltage_source_id: 2,
-            voltage_values,
-        };
+        let voltage_values = [0, 65535];
+        let voltages = Voltages::new(2, &voltage_values).unwrap();
 
-        let mut buffer = [0u8; 29 * 2];
+        let mut buffer = [0u8; 29 * 2 + 1];
         let len = voltages.to_bytes(&mut buffer).unwrap();
         let round_trip_voltages = Voltages::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(voltages, round_trip_voltages);

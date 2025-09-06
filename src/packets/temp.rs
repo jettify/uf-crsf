@@ -1,7 +1,6 @@
 use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
-
 use heapless::Vec;
 
 /// Represents a Temperature packet.
@@ -14,7 +13,31 @@ pub struct Temp {
     /// Identifies the source of the temperature data (e.g., 0 = FC, 1 = Ambient, etc.).
     pub temp_source_id: u8,
     /// Up to 20 temperature values in deci-degrees Celsius (e.g., 250 = 25.0°C).
-    pub temperatures: Vec<i16, 20>,
+    temperatures: Vec<i16, 20>,
+}
+
+impl Temp {
+    /// Creates a new Temp packet from a slice of temperature values.
+    ///
+    /// The number of temperature values must be 20 or less.
+    pub fn new(temp_source_id: u8, temperatures: &[i16]) -> Result<Self, CrsfParsingError> {
+        if temperatures.len() > 20 {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+        let mut temps = Vec::new();
+        temps
+            .extend_from_slice(temperatures)
+            .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        Ok(Self {
+            temp_source_id,
+            temperatures: temps,
+        })
+    }
+
+    /// Returns the temperature values as a slice.
+    pub fn temperatures(&self) -> &[i16] {
+        &self.temperatures
+    }
 }
 
 #[cfg(feature = "defmt")]
@@ -24,7 +47,7 @@ impl defmt::Format for Temp {
             fmt,
             "Temp {{ temp_source_id: {}, temperatures: {} }}",
             self.temp_source_id,
-            self.temperatures.as_slice(),
+            self.temperatures(),
         )
     }
 }
@@ -34,9 +57,13 @@ impl CrsfPacket for Temp {
     const MIN_PAYLOAD_SIZE: usize = 3;
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        let required_len = 1 + self.temperatures.len() * 2;
+        if buffer.len() < required_len {
+            return Err(CrsfParsingError::BufferOverflow);
+        }
         buffer[0] = self.temp_source_id;
         let mut i = 1;
-        for &temp in &self.temperatures {
+        for &temp in self.temperatures() {
             let bytes = temp.to_be_bytes();
             buffer[i..i + 2].copy_from_slice(&bytes);
             i += 2;
@@ -71,13 +98,8 @@ mod tests {
 
     #[test]
     fn test_temp_to_bytes() {
-        let mut temperatures = Vec::new();
-        temperatures.push(250).unwrap();
-        temperatures.push(-50).unwrap();
-        let temp = Temp {
-            temp_source_id: 1,
-            temperatures,
-        };
+        let temperatures = [250, -50];
+        let temp = Temp::new(1, &temperatures).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = temp.to_bytes(&mut buffer).unwrap();
@@ -102,22 +124,15 @@ mod tests {
 
         let temp = Temp::from_bytes(&data).unwrap();
 
-        let mut expected_temperatures: Vec<i16, 20> = Vec::new();
-        expected_temperatures.push(250).unwrap();
-        expected_temperatures.push(-50).unwrap();
+        let expected_temperatures = [250, -50];
         assert_eq!(temp.temp_source_id, 1);
-        assert_eq!(temp.temperatures, expected_temperatures);
+        assert_eq!(temp.temperatures(), &expected_temperatures);
     }
 
     #[test]
     fn test_temp_round_trip() {
-        let mut temperatures = Vec::new();
-        temperatures.push(1234).unwrap();
-        temperatures.push(-5678).unwrap();
-        let temp = Temp {
-            temp_source_id: 2,
-            temperatures,
-        };
+        let temperatures = [1234, -5678];
+        let temp = Temp::new(2, &temperatures).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = temp.to_bytes(&mut buffer).unwrap();
@@ -129,14 +144,8 @@ mod tests {
 
     #[test]
     fn test_edge_cases() {
-        let mut temperatures = Vec::new();
-        temperatures.push(0).unwrap();
-        temperatures.push(32767).unwrap(); // max positive
-        temperatures.push(-32768).unwrap(); // min negative
-        let temp = Temp {
-            temp_source_id: 3,
-            temperatures,
-        };
+        let temperatures = [0, 32767, -32768];
+        let temp = Temp::new(3, &temperatures).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = temp.to_bytes(&mut buffer).unwrap();
