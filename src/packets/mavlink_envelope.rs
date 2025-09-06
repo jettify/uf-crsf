@@ -15,7 +15,31 @@ pub struct MavlinkEnvelope {
     /// The index of the current chunk (0-based).
     pub current_chunk: u8,
     /// The MAVLink data payload for this chunk.
-    pub data: Vec<u8, 58>,
+    data: Vec<u8, 58>,
+}
+
+impl MavlinkEnvelope {
+    /// Creates a new MavlinkEnvelope packet from a slice of data.
+    ///
+    /// The data slice must not be longer than 58 bytes.
+    pub fn new(total_chunks: u8, current_chunk: u8, data: &[u8]) -> Result<Self, CrsfParsingError> {
+        if data.len() > 58 {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
+        let mut d = Vec::new();
+        d.extend_from_slice(data)
+            .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        Ok(Self {
+            total_chunks,
+            current_chunk,
+            data: d,
+        })
+    }
+
+    /// Returns the MAVLink data as a slice.
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
 }
 
 #[cfg(feature = "defmt")]
@@ -26,7 +50,7 @@ impl defmt::Format for MavlinkEnvelope {
             "MavlinkEnvelope {{ total_chunks: {}, current_chunk: {} data: {} }}",
             self.total_chunks,
             self.current_chunk,
-            self.data.as_slice(),
+            self.data(),
         )
     }
 }
@@ -82,13 +106,8 @@ mod tests {
 
     #[test]
     fn test_mavlink_envelope_to_bytes() {
-        let mut data: Vec<u8, 58> = Vec::new();
-        data.extend_from_slice(&[1, 2, 3, 4]).unwrap();
-        let packet = MavlinkEnvelope {
-            total_chunks: 5,
-            current_chunk: 2,
-            data,
-        };
+        let data = [1, 2, 3, 4];
+        let packet = MavlinkEnvelope::new(5, 2, &data).unwrap();
 
         let mut buffer = [0u8; 6];
         let len = packet.to_bytes(&mut buffer).unwrap();
@@ -104,22 +123,16 @@ mod tests {
         let data: [u8; 6] = [0x52, 4, 1, 2, 3, 4];
         let packet = MavlinkEnvelope::from_bytes(&data).unwrap();
 
-        let mut expected_data: Vec<u8, 58> = Vec::new();
-        expected_data.extend_from_slice(&[1, 2, 3, 4]).unwrap();
+        let expected_data = [1, 2, 3, 4];
         assert_eq!(packet.total_chunks, 5);
         assert_eq!(packet.current_chunk, 2);
-        assert_eq!(packet.data, expected_data);
+        assert_eq!(packet.data(), &expected_data);
     }
 
     #[test]
     fn test_mavlink_envelope_round_trip() {
-        let mut data: Vec<u8, 58> = Vec::new();
-        data.extend_from_slice(&[0xFE, 0xED, 0xBE, 0xEF]).unwrap();
-        let packet = MavlinkEnvelope {
-            total_chunks: 10,
-            current_chunk: 9,
-            data,
-        };
+        let data = [0xFE, 0xED, 0xBE, 0xEF];
+        let packet = MavlinkEnvelope::new(10, 9, &data).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = packet.to_bytes(&mut buffer).unwrap();
@@ -130,11 +143,7 @@ mod tests {
 
     #[test]
     fn test_empty_data() {
-        let packet = MavlinkEnvelope {
-            total_chunks: 1,
-            current_chunk: 0,
-            data: Vec::new(),
-        };
+        let packet = MavlinkEnvelope::new(1, 0, &[]).unwrap();
 
         let mut buffer = [0u8; 2];
         let len = packet.to_bytes(&mut buffer).unwrap();
@@ -148,15 +157,8 @@ mod tests {
 
     #[test]
     fn test_max_data() {
-        let mut data: Vec<u8, 58> = Vec::new();
         let payload = [0xAB; 58];
-        data.extend_from_slice(&payload).unwrap();
-
-        let packet = MavlinkEnvelope {
-            total_chunks: 15,
-            current_chunk: 15,
-            data,
-        };
+        let packet = MavlinkEnvelope::new(15, 15, &payload).unwrap();
 
         let mut buffer = [0u8; 60];
         let len = packet.to_bytes(&mut buffer).unwrap();
