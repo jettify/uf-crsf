@@ -19,6 +19,58 @@ This library provides a two-layer API:
 - IO and MCU agnostic.
 - Minimal dependencies.
 
+## Implementation status
+
+**Legend:**
+
+- `🟢` - Implemented
+- `🔴` - Not Implemented
+
+| Packet Name | Packet Address | Status |
+| :--- | :--- | :--- |
+| **Broadcast Frames** | | |
+| GPS | `0x02` | 🟢 |
+| GPS Time | `0x03` | 🟢 |
+| GPS Extended | `0x06` | 🟢 |
+| Variometer Sensor | `0x07` | 🟢 |
+| Battery Sensor | `0x08` | 🟢 |
+| Barometric Altitude & Vertical Speed | `0x09` | 🟢 |
+| Airspeed | `0x0A` | 🟢 |
+| Heartbeat | `0x0B` | 🟢 |
+| RPM | `0x0C` | 🟢 |
+| TEMP | `0x0D` | 🟢 |
+| Voltages | `0x0E` | 🟢 |
+| Discontinued | `0x0F` | 🟢 |
+| VTX Telemetry | `0x10` | 🟢 |
+| Link Statistics | `0x14` | 🟢 |
+| RC Channels Packed Payload | `0x16` | 🟢 |
+| Subset RC Channels Packed | `0x17` | 🔴 |
+| RC Channels Packed 11-bits | `0x18` | 🔴 |
+| Link Statistics RX | `0x1C` | 🟢 |
+| Link Statistics TX | `0x1D` | 🟢 |
+| Attitude | `0x1E` | 🟢 |
+| MAVLink FC | `0x1F` | 🟢 |
+| Flight Mode | `0x21` | 🟢 |
+| ESP_NOW Messages | `0x22` | 🟢 |
+| **Extended Frames** | | |
+| Parameter Ping Devices | `0x28` | 🟢 |
+| Parameter Device Information | `0x29` | 🟢 |
+| Parameter Settings (Entry) | `0x2B` | 🔴 |
+| Parameter Settings (Read) | `0x2C` | 🔴 |
+| Parameter Value (Write) | `0x2D` | 🔴 |
+| Direct Commands | `0x32` | 🟢 |
+| Logging | `0x34` | 🔴 |
+| Remote Related Frames | `0x3A` | 🟢 |
+| Game | `0x3C` | 🟢 |
+| KISSFC Reserved | `0x78 - 0x79` | 🔴 |
+| MSP Request | `0x7A` | 🔴 |
+| MSP Response | `0x7B` | 🔴 |
+| ArduPilot Legacy Reserved | `0x7F` | 🔴 |
+| ArduPilot Reserved Passthrough Frame | `0x80` | 🟢 |
+| mLRS Reserved | `0x81, 0x82` | 🔴 |
+| CRSF MAVLink Envelope | `0xAA` | 🟢 |
+| CRSF MAVLink System Status Sensor | `0xAC` | 🔴 |
+
 ## Note
 
 Library is under active development and testing, API might change at any time.
