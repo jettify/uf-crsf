@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 crc = "3.3.0"
 defmt = { version = "1.0.1", optional = true }
-heapless = "0.8.0"
+heapless = "0.9.1"
 libm = "0.2.15"
 num_enum = { version = "0.7.3", default-features = false }
 
