@@ -59,7 +59,7 @@ This library provides a two-layer API:
 | Parameter Settings (Read) | `0x2C` | 🔴 |
 | Parameter Value (Write) | `0x2D` | 🔴 |
 | Direct Commands | `0x32` | 🟢 |
-| Logging | `0x34` | 🔴 |
+| Logging | `0x34` | 🟢 |
 | Remote Related Frames | `0x3A` | 🟢 |
 | Game | `0x3C` | 🟢 |
 | KISSFC Reserved | `0x78 - 0x79` | 🔴 |

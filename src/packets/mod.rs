@@ -20,6 +20,7 @@ mod heartbeat;
 mod link_statistics;
 mod link_statistics_rx;
 mod link_statistics_tx;
+mod logging;
 mod mavlink_envelope;
 mod mavlink_fc;
 mod rc_channels_packed;
@@ -47,6 +48,7 @@ pub use heartbeat::Heartbeat;
 pub use link_statistics::LinkStatistics;
 pub use link_statistics_rx::LinkStatisticsRx;
 pub use link_statistics_tx::LinkStatisticsTx;
+pub use logging::Logging;
 pub use mavlink_envelope::MavlinkEnvelope;
 pub use mavlink_fc::MavLinkFc;
 pub use rc_channels_packed::RcChannelsPacked;
@@ -111,6 +113,7 @@ pub enum Packet {
     Game(Game),
     NotImlemented(PacketType, usize),
     Commands(DirectCommands),
+    Logging(Logging),
 }
 
 impl Packet {
@@ -159,6 +162,7 @@ impl Packet {
                 Ok(Self::MavlinkEnvelope(MavlinkEnvelope::from_bytes(data)?))
             }
             DirectCommands::PACKET_TYPE => Ok(Self::Commands(DirectCommands::from_bytes(data)?)),
+            Logging::PACKET_TYPE => Ok(Self::Logging(Logging::from_bytes(data)?)),
             _ => Ok(Packet::NotImlemented(
                 packet_type,
                 raw_packet.payload().len(),
@@ -200,6 +204,7 @@ pub enum PacketType {
     ParameterWrite = 0x2D,
     ElrsStatus = 0x2E,
     Command = 0x32,
+    Logging = 0x34,
     RadioId = 0x3A,
     KissRequest = 0x78,
     KissResponse = 0x79,
