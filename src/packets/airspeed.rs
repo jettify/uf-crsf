@@ -23,13 +23,12 @@ impl CrsfPacket for AirSpeed {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        Ok(Self {
-            speed: u16::from_be_bytes(
-                data[0..2]
-                    .try_into()
-                    .map_err(|_| CrsfParsingError::InvalidPayloadLength)?,
-            ),
-        })
+        let speed = data
+            .get(0..2)
+            .and_then(|slice| slice.try_into().ok())
+            .map(u16::from_be_bytes)
+            .ok_or(CrsfParsingError::InvalidPayloadLength)?;
+        Ok(Self { speed })
     }
 }
 
@@ -60,5 +59,20 @@ mod tests {
         let _ = airspeed.to_bytes(&mut buffer);
         let round_trip_airspeed = AirSpeed::from_bytes(&buffer).unwrap();
         assert_eq!(airspeed, round_trip_airspeed);
+    }
+
+    #[test]
+    fn test_airspeed_to_bytes_buffer_too_small() {
+        let airspeed = AirSpeed { speed: 1234 };
+        let mut buffer = [0u8; 1];
+        let result = airspeed.to_bytes(&mut buffer);
+        assert_eq!(result, Err(CrsfParsingError::BufferOverflow));
+    }
+
+    #[test]
+    fn test_airspeed_from_bytes_invalide_size() {
+        let data: [u8; 1] = [0x04];
+        let result = AirSpeed::from_bytes(&data);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
     }
 }
