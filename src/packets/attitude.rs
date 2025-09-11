@@ -88,4 +88,23 @@ mod tests {
         let round_trip = Attitude::from_bytes(&buffer).unwrap();
         assert_eq!(packet, round_trip);
     }
+
+    #[test]
+    fn test_attitude_from_bytes_too_small() {
+        let data: [u8; 5] = [0; 5];
+        let result = Attitude::from_bytes(&data);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
+
+    #[test]
+    fn test_attitude_to_bytes_too_small() {
+        let packet = Attitude {
+            pitch: 1,
+            roll: 2,
+            yaw: 3,
+        };
+        let mut buffer = [0u8; 5];
+        let result = packet.to_bytes(&mut buffer);
+        assert_eq!(result, Err(CrsfParsingError::BufferOverflow));
+    }
 }
