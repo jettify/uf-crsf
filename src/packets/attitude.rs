@@ -30,9 +30,7 @@ impl CrsfPacket for Attitude {
     }
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
-        if buffer.len() < Self::MIN_PAYLOAD_SIZE {
-            return Err(CrsfParsingError::BufferOverflow);
-        }
+        self.validate_buffer_size(buffer)?;
         buffer[0..2].copy_from_slice(&self.pitch.to_be_bytes());
         buffer[2..4].copy_from_slice(&self.roll.to_be_bytes());
         buffer[4..6].copy_from_slice(&self.yaw.to_be_bytes());

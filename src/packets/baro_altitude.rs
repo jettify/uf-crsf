@@ -66,10 +66,7 @@ impl CrsfPacket for BaroAltitude {
     const MIN_PAYLOAD_SIZE: usize = size_of::<u16>() + size_of::<i8>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
-        if buffer.len() != Self::MIN_PAYLOAD_SIZE {
-            return Err(CrsfParsingError::InvalidPayloadLength);
-        }
-
+        self.validate_buffer_size(buffer)?;
         buffer[0..2].copy_from_slice(&self.altitude_packed.to_be_bytes());
         buffer[2] = self.vertical_speed_packed as u8;
         Ok(Self::MIN_PAYLOAD_SIZE)
@@ -229,5 +226,23 @@ mod tests {
         baro_altitude.to_bytes(&mut buffer).unwrap();
         let round_trip_baro_altitude = BaroAltitude::from_bytes(&buffer).unwrap();
         assert_eq!(baro_altitude, round_trip_baro_altitude);
+    }
+
+    #[test]
+    fn test_baro_altitude_to_bytes_buffer_too_small() {
+        let baro_altitude = BaroAltitude {
+            altitude_packed: 12345,
+            vertical_speed_packed: -50,
+        };
+        let mut buffer = [0u8; 2];
+        let result = baro_altitude.to_bytes(&mut buffer);
+        assert_eq!(result, Err(CrsfParsingError::BufferOverflow));
+    }
+
+    #[test]
+    fn test_baro_altitude_from_bytes_invalide_size() {
+        let data: [u8; 1] = [0x04];
+        let result = BaroAltitude::from_bytes(&data);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
     }
 }
