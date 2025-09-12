@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/jettify/uf-crsf/compare/v0.3.0...v0.4.0) - 2025-09-12
+
+### Added
+
+- Add CRSF logging packet. ([#52](https://github.com/jettify/uf-crsf/issues/52))
+
+### Fixed
+
+- make from_bytes safe for small buffers ([#54](https://github.com/jettify/uf-crsf/issues/54))
+
+### Other
+
+- Improve error handling for baro altitude packet. ([#56](https://github.com/jettify/uf-crsf/issues/56))
+- Add test cases for errors in attitude packets. ([#55](https://github.com/jettify/uf-crsf/issues/55))
+
 ## [0.3.0](https://github.com/jettify/uf-crsf/compare/v0.2.1...v0.3.0) - 2025-09-06
 
 ### Fixed
