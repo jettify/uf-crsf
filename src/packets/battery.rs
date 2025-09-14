@@ -134,4 +134,25 @@ mod tests {
         let round_trip_battery = Battery::from_bytes(&buffer).unwrap();
         assert_eq!(battery, round_trip_battery);
     }
+
+    #[test]
+    fn test_battery_to_bytes_buffer_too_small() {
+        let battery = Battery {
+            voltage: 12345,
+            current: -1000,
+            capacity_used: 1234567,
+            remaining: 75,
+        };
+
+        let mut buffer = [0u8; 5];
+        let result = battery.to_bytes(&mut buffer);
+        assert_eq!(result, Err(CrsfParsingError::BufferOverflow));
+    }
+
+    #[test]
+    fn test_battery_from_bytes_invalide_size() {
+        let data: [u8; 3] = [0x04; 3];
+        let result = Battery::from_bytes(&data);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }
