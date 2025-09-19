@@ -45,11 +45,7 @@ mod tests {
     #[test]
     fn test_attitude_from_bytes() {
         assert_eq!(Attitude::MIN_PAYLOAD_SIZE, 6);
-        let data: [u8; 6] = [
-            0x01, 0x02, // pitch
-            0x03, 0x04, // roll
-            0x05, 0x06, // yaw
-        ];
+        let data: [u8; 6] = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
         let packet = Attitude::from_bytes(&data).unwrap();
         assert_eq!(packet.pitch, 0x0102);
         assert_eq!(packet.roll, 0x0304);
@@ -66,11 +62,7 @@ mod tests {
         let mut buffer = [0u8; 6];
         let len = packet.to_bytes(&mut buffer).unwrap();
         assert_eq!(len, 6);
-        let expected: [u8; 6] = [
-            0xFC, 0x18, // -1000
-            0x03, 0xE8, // 1000
-            0x7A, 0xB7, // 31415
-        ];
+        let expected: [u8; 6] = [0xFC, 0x18, 0x03, 0xE8, 0x7A, 0xB7];
         assert_eq!(buffer, expected);
     }
 

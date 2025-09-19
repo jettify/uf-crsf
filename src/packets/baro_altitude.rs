@@ -36,9 +36,9 @@ impl BaroAltitude {
         const ALT_MAX_DM: i32 = 0x7ffe * 10 - 5;
 
         if altitude_dm < -ALT_MIN_DM {
-            0 //minimum
+            0
         } else if altitude_dm > ALT_MAX_DM {
-            0xfffe //maximum
+            0xfffe
         } else if altitude_dm < ALT_THRESHOLD_DM {
             (altitude_dm + ALT_MIN_DM) as u16
         } else {
@@ -173,10 +173,7 @@ mod tests {
         let mut buffer = [0u8; BaroAltitude::MIN_PAYLOAD_SIZE];
         baro_altitude.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; BaroAltitude::MIN_PAYLOAD_SIZE] = [
-            0x30, 0x39, // altitude_packed: 12345
-            0xce, // vertical_speed_packed: -50
-        ];
+        let expected_bytes: [u8; BaroAltitude::MIN_PAYLOAD_SIZE] = [0x30, 0x39, 0xce];
 
         assert_eq!(buffer, expected_bytes);
     }
@@ -184,10 +181,7 @@ mod tests {
     #[test]
     fn test_baro_altitude_from_bytes() {
         assert_eq!(BaroAltitude::MIN_PAYLOAD_SIZE, 3);
-        let data: [u8; BaroAltitude::MIN_PAYLOAD_SIZE] = [
-            0x30, 0x39, // altitude_packed: 12345
-            0xce, // vertical_speed_packed: -50
-        ];
+        let data: [u8; BaroAltitude::MIN_PAYLOAD_SIZE] = [0x30, 0x39, 0xce];
 
         let baro_altitude = BaroAltitude::from_bytes(&data).unwrap();
 

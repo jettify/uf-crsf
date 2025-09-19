@@ -22,6 +22,17 @@ num_enum = { version = "0.7.3", default-features = false }
 [dev-dependencies]
 serialport = "4.6"
 
+[[example]]
+name = "raw"
+path = "examples/local_raw.rs"
+
+[[example]]
+name = "std"
+path = "examples/local_std.rs"
+
+[[example]]
+name = "simple"
+path = "examples/local_simple.rs"
 
 [features]
 "defmt" = ["dep:defmt"]

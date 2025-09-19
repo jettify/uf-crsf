@@ -71,30 +71,16 @@ mod tests {
         let mut buffer = [0u8; GpsTime::MIN_PAYLOAD_SIZE];
         gps_time.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; GpsTime::MIN_PAYLOAD_SIZE] = [
-            0x07, 0xe8, // Year: 2024
-            0x0a, // Month: 10
-            0x1b, // Day: 27
-            0x0c, // Hour: 12
-            0x22, // Minute: 34
-            0x38, // Second: 56
-            0x03, 0x15, // Millisecond: 789
-        ];
+        let expected_bytes: [u8; GpsTime::MIN_PAYLOAD_SIZE] =
+            [0x07, 0xe8, 0x0a, 0x1b, 0x0c, 0x22, 0x38, 0x03, 0x15];
 
         assert_eq!(buffer, expected_bytes);
     }
 
     #[test]
     fn test_gps_time_from_bytes() {
-        let data: [u8; GpsTime::MIN_PAYLOAD_SIZE] = [
-            0x07, 0xe8, // Year: 2024
-            0x0a, // Month: 10
-            0x1b, // Day: 27
-            0x0c, // Hour: 12
-            0x22, // Minute: 34
-            0x38, // Second: 56
-            0x03, 0x15, // Millisecond: 789
-        ];
+        let data: [u8; GpsTime::MIN_PAYLOAD_SIZE] =
+            [0x07, 0xe8, 0x0a, 0x1b, 0x0c, 0x22, 0x38, 0x03, 0x15];
 
         let gps_time = GpsTime::from_bytes(&data).unwrap();
 

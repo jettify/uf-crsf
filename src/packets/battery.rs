@@ -25,7 +25,8 @@ impl CrsfPacket for Battery {
         self.validate_buffer_size(buffer)?;
         buffer[0..2].copy_from_slice(&self.voltage.to_be_bytes());
         buffer[2..4].copy_from_slice(&self.current.to_be_bytes());
-        buffer[4..7].copy_from_slice(&self.capacity_used.to_be_bytes()[1..]); // Take only the last 3 bytes
+        // Take only the last 3 bytes
+        buffer[4..7].copy_from_slice(&self.capacity_used.to_be_bytes()[1..]);
         buffer[7] = self.remaining;
         Ok(Self::MIN_PAYLOAD_SIZE)
     }
@@ -71,24 +72,16 @@ mod tests {
         let mut buffer = [0u8; Battery::MIN_PAYLOAD_SIZE];
         battery.to_bytes(&mut buffer).unwrap();
 
-        let expected_bytes: [u8; Battery::MIN_PAYLOAD_SIZE] = [
-            0x30, 0x39, // Voltage: 12345
-            0xfc, 0x18, // Current: -1000
-            0x12, 0xd6, 0x87, // Capacity Used: 1234567
-            0x4b, // Remaining: 75
-        ];
+        let expected_bytes: [u8; Battery::MIN_PAYLOAD_SIZE] =
+            [0x30, 0x39, 0xfc, 0x18, 0x12, 0xd6, 0x87, 0x4b];
 
         assert_eq!(buffer, expected_bytes);
     }
 
     #[test]
     fn test_battery_from_bytes() {
-        let data: [u8; Battery::MIN_PAYLOAD_SIZE] = [
-            0x30, 0x39, // Voltage: 12345
-            0xfc, 0x18, // Current: -1000
-            0x12, 0xd6, 0x87, // Capacity Used: 1234567
-            0x4b, // Remaining: 75
-        ];
+        let data: [u8; Battery::MIN_PAYLOAD_SIZE] =
+            [0x30, 0x39, 0xfc, 0x18, 0x12, 0xd6, 0x87, 0x4b];
 
         let battery = Battery::from_bytes(&data).unwrap();
 
