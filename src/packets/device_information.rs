@@ -250,6 +250,14 @@ mod tests {
     }
 
     #[test]
+    fn test_device_buffer_too_small() {
+        let info = DeviceInformation::new(0x12, 0x34, "MyDevice", 1, 2, 3, 4, 5).unwrap();
+        let mut buffer = [0u8; DeviceInformation::MIN_PAYLOAD_SIZE - 1];
+        let result = info.to_bytes(&mut buffer);
+        assert_eq!(result, Err(CrsfParsingError::BufferOverflow));
+    }
+
+    #[test]
     fn test_device_information_from_bytes_no_null() {
         let data = b"\xEA\xEE\nNo null terminator here and lots of other data that should be enough for the rest of the fields 12345678901234";
         let result = DeviceInformation::from_bytes(data);

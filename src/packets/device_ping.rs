@@ -14,9 +14,10 @@ impl CrsfPacket for DevicePing {
     const MIN_PAYLOAD_SIZE: usize = 2 * size_of::<u8>();
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        self.validate_buffer_size(buffer)?;
         buffer[0] = self.dst_addr;
         buffer[1] = self.src_addr;
-        Ok(2)
+        Ok(Self::MIN_PAYLOAD_SIZE)
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
@@ -68,5 +69,15 @@ mod tests {
                 src_addr: 0xEE
             }
         );
+    }
+    #[test]
+    fn test_parameter_ping_buffer_too_small() {
+        let ping = DevicePing {
+            dst_addr: 0xEA,
+            src_addr: 0xEE,
+        };
+        let mut buffer = [0u8; DevicePing::MIN_PAYLOAD_SIZE - 1];
+        let result = ping.to_bytes(&mut buffer);
+        assert_eq!(result, Err(CrsfParsingError::BufferOverflow));
     }
 }
