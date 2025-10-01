@@ -104,11 +104,11 @@ mod tests {
     #[test]
     fn test_gps_round_trip() {
         let gps = Gps {
-            latitude: 525200000,  // Example: 52.52 degrees
-            longitude: 134050000, // Example: 13.405 degrees
-            groundspeed: 5000,    // 50.00 km/h
-            heading: 18000,       // 180.00 degrees
-            altitude: 1100,       // 100m
+            latitude: 525200000,
+            longitude: 134050000,
+            groundspeed: 5000,
+            heading: 18000,
+            altitude: 1100,
             satellites: 12,
         };
 
