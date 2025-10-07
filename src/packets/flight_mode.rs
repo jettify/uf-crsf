@@ -96,6 +96,16 @@ mod tests {
     }
 
     #[test]
+    fn test_flight_node_from_bytes_too_small() {
+        let data: [u8; 0] = [];
+        let result = FlightMode::from_bytes(&data);
+        assert_eq!(
+            result.unwrap().flight_mode,
+            String::<MAX_FLIGHT_MODE_LEN>::new()
+        );
+    }
+
+    #[test]
     fn test_flight_mode_from_bytes() {
         let data: [u8; 5] = [b'A', b'C', b'R', b'O', 0];
         let flight_mode = FlightMode::from_bytes(&data).unwrap();
