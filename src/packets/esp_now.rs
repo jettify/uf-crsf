@@ -125,4 +125,25 @@ mod tests {
 
         assert_eq!(esp_now, round_trip_esp_now);
     }
+
+    #[test]
+    fn test_esp_now_from_bytes_too_small() {
+        let data: [u8; 5] = [0; 5];
+        let result = EspNow::from_bytes(&data);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
+
+    #[test]
+    fn test_esp_now_to_bytes_too_small() {
+        let esp_now = EspNow {
+            val1: 10,
+            val2: 20,
+            val3: [65u8; 15],
+            val4: [66u8; 15],
+            free_text: [67u8; 20],
+        };
+        let mut buffer = [0u8; 8];
+        let result = esp_now.to_bytes(&mut buffer);
+        assert_eq!(result, Err(CrsfParsingError::BufferOverflow));
+    }
 }
