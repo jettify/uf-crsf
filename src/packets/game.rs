@@ -148,4 +148,23 @@ mod tests {
         let round_trip = Game::from_bytes(&buffer).unwrap();
         assert_eq!(packet, round_trip);
     }
+
+    #[test]
+    fn test_game_from_bytes_too_small() {
+        let data: [u8; 4] = [0; 4];
+        let result = Game::from_bytes(&data);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
+
+    #[test]
+    fn test_game_to_bytes_too_small() {
+        let packet = Game {
+            dst_addr: 0xC8,
+            src_addr: 0xEC,
+            payload: GamePayload::AddPoints(-50),
+        };
+        let mut buffer = [0u8; 4];
+        let result = packet.to_bytes(&mut buffer);
+        assert_eq!(result, Err(CrsfParsingError::BufferOverflow));
+    }
 }
