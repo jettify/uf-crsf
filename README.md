@@ -121,7 +121,7 @@ fn main() {
 
 ## License
 
-This project is licensed under the `Apache 2.0`. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the `Apache 2.0`. See the [LICENSE](https://github.com/jettify/uf-crsf/blob/master/LICENSE) file for details.
 
 ## Protocol Specification
 
