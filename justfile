@@ -61,10 +61,11 @@ pedantic:
 audit:
   cargo audit
 
+set positional-arguments
 # Run tests for all features
 [group('test')]
-test:
-  cargo test --all-features -- --show-output
+test args='':
+  cargo test --all-features $1 -- --show-output
 
 # Run same testing commands as on CI server
 [group('test')]
@@ -72,3 +73,4 @@ ci:
   cargo clippy --all -- -D warnings
   cargo build --verbose
   cargo test --all-features --verbose
+  cargo test --examples

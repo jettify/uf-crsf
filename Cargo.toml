@@ -25,10 +25,14 @@ serialport = "4.6"
 [[example]]
 name = "raw"
 path = "examples/local_raw.rs"
+# requires libudev installed
+test = false
 
 [[example]]
 name = "std"
 path = "examples/local_std.rs"
+# requires libudev installed
+test = false
 
 [[example]]
 name = "simple"
