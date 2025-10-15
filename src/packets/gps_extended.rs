@@ -181,4 +181,35 @@ mod tests {
         let round_trip_gps_extended = GpsExtended::from_bytes(&buffer).unwrap();
         assert_eq!(gps_extended, round_trip_gps_extended);
     }
+
+    #[test]
+    fn test_to_bytes_buffer_too_small() {
+        let gps_extended = GpsExtended {
+            fix_type: 255,
+            n_speed: -32768,
+            e_speed: 32767,
+            v_speed: -1,
+            h_speed_acc: 0,
+            track_acc: 1,
+            alt_ellipsoid: -1000,
+            h_acc: 1000,
+            v_acc: -500,
+            reserved: 200,
+            h_dop: 100,
+            v_dop: 50,
+        };
+        let mut buffer: [u8; 14] = [0; 14];
+        let result = gps_extended.to_bytes(&mut buffer);
+        assert!(matches!(result, Err(CrsfParsingError::BufferOverflow)));
+    }
+
+    #[test]
+    fn test_from_bytes_invalid_len() {
+        let raw_bytes: [u8; 14] = [0; 14];
+        let result = GpsExtended::from_bytes(&raw_bytes);
+        assert!(matches!(
+            result,
+            Err(CrsfParsingError::InvalidPayloadLength)
+        ));
+    }
 }
