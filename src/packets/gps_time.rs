@@ -135,4 +135,27 @@ mod tests {
         let round_trip_gps_time = GpsTime::from_bytes(&buffer).unwrap();
         assert_eq!(gps_time, round_trip_gps_time);
     }
+
+    #[test]
+    fn test_to_bytes_buffer_too_small() {
+        let gps_time = GpsTime {
+            year: -1,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            second: 0,
+            millisecond: 65535,
+        };
+        let mut buffer: [u8; 8] = [0; 8];
+        let result = gps_time.to_bytes(&mut buffer);
+        assert!(matches!(result, Err(CrsfParsingError::BufferOverflow)));
+    }
+
+    #[test]
+    fn test_from_bytes_too_small() {
+        let data: [u8; 8] = [0; 8];
+        let result = GpsTime::from_bytes(&data);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }
