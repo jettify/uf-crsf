@@ -134,6 +134,12 @@ impl Default for CrsfParser {
     }
 }
 
+/// Represents a valid, but unparsed, CRSF packet.
+///
+/// This struct is a zero-copy view into a byte buffer that has been validated
+/// to contain a complete CRSF packet, including the sync byte, length, type,
+/// payload, and CRC. It provides methods to access the different parts of the
+/// packet without parsing the payload itself.
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RawCrsfPacket<'a> {
@@ -141,6 +147,10 @@ pub struct RawCrsfPacket<'a> {
 }
 
 impl<'a> RawCrsfPacket<'a> {
+    /// Creates a new `RawCrsfPacket` from a byte slice.
+    ///
+    /// Returns `None` if the slice is shorter than the minimum possible
+    /// CRSF packet length (4 bytes).
     pub fn new(bytes: &'a [u8]) -> Option<Self> {
         if bytes.len() >= 4 {
             Some(Self { bytes })
@@ -149,28 +159,37 @@ impl<'a> RawCrsfPacket<'a> {
         }
     }
 
+    /// Returns the destination address byte of the packet.
     pub fn dst_addr(&self) -> u8 {
         self.bytes[0]
     }
+
+    /// Returns the raw packet type byte.
     pub fn raw_packet_type(&self) -> u8 {
-        // XXX
         self.bytes[2]
     }
 
+    /// Returns a slice representing the packet's payload.
+    ///
+    /// The payload does not include the CRSF framing (destination, size, type, CRC).
     pub fn payload(&self) -> &[u8] {
-        // XXX
         &self.bytes[3..self.bytes.len() - 1]
     }
 
+    /// Returns the CRC check byte of the packet.
     #[expect(clippy::missing_panics_doc, reason = "infallible")]
     pub fn crc(&self) -> u8 {
         *self.bytes.last().expect("infallible due to length check")
     }
 
+    /// Returns the total length of the packet in bytes, including the framing.
     pub fn len(&self) -> usize {
         self.bytes.len()
     }
 
+    /// Returns `true` if the packet has a length of zero.
+    ///
+    /// Note: A valid CRSF packet should not be empty.
     pub fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }
