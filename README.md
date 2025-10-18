@@ -69,7 +69,7 @@ This library provides a two-layer API:
 | ArduPilot Reserved Passthrough Frame | `0x80` | 🟢 |
 | mLRS Reserved | `0x81, 0x82` | 🔴 |
 | CRSF MAVLink Envelope | `0xAA` | 🟢 |
-| CRSF MAVLink System Status Sensor | `0xAC` | 🔴 |
+| CRSF MAVLink System Status Sensor | `0xAC` | 🟢 |
 
 ## Note
 
