@@ -23,6 +23,7 @@ mod link_statistics_tx;
 mod logging;
 mod mavlink_envelope;
 mod mavlink_fc;
+mod mavlink_sensor;
 mod rc_channels_packed;
 mod remote;
 mod rpm;
@@ -51,6 +52,7 @@ pub use link_statistics_tx::LinkStatisticsTx;
 pub use logging::Logging;
 pub use mavlink_envelope::MavlinkEnvelope;
 pub use mavlink_fc::MavLinkFc;
+pub use mavlink_sensor::MavLinkSensor;
 pub use rc_channels_packed::RcChannelsPacked;
 pub use remote::Remote;
 pub use rpm::Rpm;
@@ -106,6 +108,7 @@ pub enum Packet {
     EspNow(EspNow),
     MavlinkEnvelope(MavlinkEnvelope),
     MavLinkFc(MavLinkFc),
+    MavLinkSensor(MavLinkSensor),
     Remote(Remote),
     Attitude(Attitude),
     DeviceInformation(DeviceInformation),
@@ -150,6 +153,7 @@ impl Packet {
             EspNow::PACKET_TYPE => Ok(Self::EspNow(EspNow::from_bytes(data)?)),
             Heartbeat::PACKET_TYPE => Ok(Self::Heartbeat(Heartbeat::from_bytes(data)?)),
             MavLinkFc::PACKET_TYPE => Ok(Self::MavLinkFc(MavLinkFc::from_bytes(data)?)),
+            MavLinkSensor::PACKET_TYPE => Ok(Self::MavLinkSensor(MavLinkSensor::from_bytes(data)?)),
             Remote::PACKET_TYPE => Ok(Self::Remote(Remote::from_bytes(data)?)),
             Attitude::PACKET_TYPE => Ok(Self::Attitude(Attitude::from_bytes(data)?)),
             DevicePing::PACKET_TYPE => Ok(Self::DevicePing(DevicePing::from_bytes(data)?)),
@@ -213,6 +217,7 @@ pub enum PacketType {
     MspWrite = 0x7C,
     ArdupilotResponse = 0x80,
     MavlinkEnvelope = 0xAA,
+    MavLinkSensor = 0xAC,
     Game = 0x3C,
 }
 
