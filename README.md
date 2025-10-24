@@ -1,6 +1,7 @@
 # uf-crsf
 
 [![CI](https://github.com/jettify/uf-crsf/actions/workflows/CI.yml/badge.svg)](https://github.com/jettify/uf-crsf/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/jettify/uf-crsf/graph/badge.svg?token=2N16CN1OZX)](https://codecov.io/gh/jettify/uf-crsf)
 [![crates.io](https://img.shields.io/crates/v/uf-crsf)](https://crates.io/crates/uf-crsf)
 [![docs.rs](https://img.shields.io/docsrs/uf-crsf)](https://docs.rs/uf-crsf/latest/uf_crsf/)
 

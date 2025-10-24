@@ -19,9 +19,12 @@ clean:
 
 # Install cargo tools used in package maintenance
 [group('build')]
-init_dev:
+install_dev_tools:
   cargo install --locked release-plz
-  cargo install cargo-audit
+  cargo install --locked cargo-audit
+  cargo install --locked cargo-outdated
+  cargo install --locked cargo-llvm-cov
+  cargo install --locked cargo-expand
   echo "libudev-dev required to compile/run examples that uses serialport"
   echo "Relevant package may need to be installed: sudo apt install -y libudev-dev"
 
@@ -66,6 +69,11 @@ set positional-arguments
 [group('test')]
 test args='':
   cargo test --all-features $1 -- --show-output
+
+# Run llvm-cov code coverage tool and open report in browser
+[group('test')]
+cov:
+  cargo llvm-cov --open
 
 # Run same testing commands as on CI server
 [group('test')]
