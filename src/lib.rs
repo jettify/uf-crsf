@@ -7,6 +7,12 @@ pub mod error;
 pub mod packets;
 pub mod parser;
 
+#[cfg(feature = "async")]
+pub mod async_io;
+
+#[cfg(feature = "blocking")]
+pub mod blocking_io;
+
 pub use error::{CrsfParsingError, CrsfStreamError};
 pub use packets::{write_packet_to_buffer, Packet, PacketAddress, PacketType};
 pub use parser::{CrsfParser, RawCrsfPacket};
