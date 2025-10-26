@@ -30,6 +30,13 @@ embedded-io-async = "0.7.0"
 
 
 [[example]]
+name = "async"
+path = "examples/local_async.rs"
+required-features = ["async"]
+test = false
+
+
+[[example]]
 name = "raw"
 path = "examples/local_raw.rs"
 # requires libudev installed
