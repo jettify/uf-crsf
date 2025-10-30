@@ -54,5 +54,5 @@ path = "examples/local_simple.rs"
 
 [features]
 "defmt" = ["dep:defmt", "embedded-io-async?/defmt", "embedded-io?/defmt"]
-"async" = ["dep:embedded-io-async", "dep:embedded-io"]
-"blocking" = ["dep:embedded-io"]
+"embedded_io_async" = ["dep:embedded-io-async", "dep:embedded-io"]
+"embedded_io" = ["dep:embedded-io"]

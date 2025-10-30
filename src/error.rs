@@ -1,4 +1,4 @@
-#[cfg(any(feature = "async", feature = "blocking"))]
+#[cfg(any(feature = "embedded_io_async", feature = "embedded_io"))]
 use embedded_io::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,9 +23,9 @@ pub enum CrsfStreamError {
     UnexpectedPacketType(u8),
     ParsingError(CrsfParsingError),
     InputBufferTooSmall,
-    #[cfg(any(feature = "async", feature = "blocking"))]
+    #[cfg(any(feature = "embedded_io_async", feature = "embedded_io"))]
     Io(ErrorKind),
-    #[cfg(any(feature = "async", feature = "blocking"))]
+    #[cfg(any(feature = "embedded_io_async", feature = "embedded_io"))]
     UnexpectedEof,
 }
 
