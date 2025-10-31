@@ -1,4 +1,4 @@
-#![cfg(feature = "async")]
+#![cfg(feature = "embedded_io_async")]
 #![cfg(test)]
 extern crate std;
 
@@ -41,13 +41,19 @@ async fn test_write_and_read_packet_async() {
     assert!(result.is_ok());
     let parsed_packet = result.unwrap();
 
-    if let Packet::LinkStatistics(stats) = parsed_packet {
-        assert_eq!(stats.uplink_rssi_1, 10);
-        assert_eq!(stats.uplink_link_quality, 95);
-        assert_eq!(stats.downlink_link_quality, 98);
-    } else {
-        panic!("Incorrect packet type");
-    }
+    let packet = LinkStatistics {
+        uplink_rssi_1: 10,
+        uplink_rssi_2: 20,
+        uplink_link_quality: 95,
+        uplink_snr: -80,
+        active_antenna: 1,
+        rf_mode: 2,
+        uplink_tx_power: 3,
+        downlink_rssi: 30,
+        downlink_link_quality: 98,
+        downlink_snr: -75,
+    };
+    assert!(matches!(parsed_packet, Packet::LinkStatistics(p) if p == packet));
 }
 
 #[tokio::test]

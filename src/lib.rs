@@ -7,10 +7,10 @@ pub mod error;
 pub mod packets;
 pub mod parser;
 
-#[cfg(feature = "async")]
+#[cfg(feature = "embedded_io_async")]
 pub mod async_io;
 
-#[cfg(feature = "blocking")]
+#[cfg(feature = "embedded_io")]
 pub mod blocking_io;
 
 pub use error::{CrsfParsingError, CrsfStreamError};
