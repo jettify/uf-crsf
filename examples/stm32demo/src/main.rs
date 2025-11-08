@@ -13,7 +13,6 @@ use embassy_stm32::usart::{Config as UsartConfig, Uart};
 use embassy_stm32::{bind_interrupts, peripherals, usart, Config};
 use embassy_time::{with_timeout, Duration, Timer};
 use fmt::info;
-use uf_crsf::parser::ParseResult;
 use uf_crsf::CrsfParser;
 
 bind_interrupts!(struct Irqs {
@@ -59,9 +58,9 @@ async fn main(_spawner: Spawner) {
             Ok(bytes) => {
                 for &byte in &buffer[..bytes] {
                     match parser.push_byte(byte) {
-                        ParseResult::Complete(packet) => info!("{:?}", packet),
-                        ParseResult::Error(e) => info!("Parsing error {:?}", e),
-                        ParseResult::Incomplete => (),
+                        Ok(Some(packet)) => info!("{:?}", packet),
+                        Err(e) => info!("Parsing error {:?}", e),
+                        Ok(None) => (),
                     }
                 }
             }
@@ -84,4 +83,3 @@ async fn read_serial_data(
         .map_err(|_| ReadError::Timeout)?
         .map_err(ReadError::Uart)
 }
-

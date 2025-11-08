@@ -82,7 +82,7 @@ Add `uf-crsf` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-uf-crsf = "0.1.0"
+uf-crsf = "*" # replace * by the latest version of the crate.
 ```
 
 Or use the command line:

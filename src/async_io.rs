@@ -1,6 +1,6 @@
 use crate::error::CrsfStreamError;
 use crate::packets::{write_packet_to_buffer, CrsfPacket, Packet, PacketAddress};
-use crate::parser::{CrsfParser, ParseResult};
+use crate::parser::CrsfParser;
 use embedded_io_async::{Error, Read, Write};
 
 impl CrsfParser {
@@ -25,9 +25,9 @@ impl CrsfParser {
 
             for b in &buf[0..n] {
                 match self.push_byte(*b) {
-                    ParseResult::Complete(packet) => return Ok(packet),
-                    ParseResult::Incomplete => continue,
-                    ParseResult::Error(e) => return Err(e),
+                    Ok(Some(packet)) => return Ok(packet),
+                    Ok(None) => continue,
+                    Err(e) => return Err(e),
                 }
             }
         }

@@ -23,13 +23,6 @@ pub struct CrsfParser {
     position: usize,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum ParseResult<T> {
-    Complete(T),
-    Incomplete,
-    Error(CrsfStreamError),
-}
-
 const CRC8_DVB_S2: Crc<u8> = Crc::<u8>::new(&crc::CRC_8_DVB_S2);
 
 impl CrsfParser {
@@ -41,17 +34,20 @@ impl CrsfParser {
         }
     }
 
-    pub fn push_byte_raw(&mut self, byte: u8) -> ParseResult<RawCrsfPacket<'_>> {
+    pub fn push_byte_raw(
+        &mut self,
+        byte: u8,
+    ) -> Result<Option<RawCrsfPacket<'_>>, CrsfStreamError> {
         match self.state {
             State::AwaitingSync => {
                 if PacketAddress::try_from_primitive(byte).is_ok() {
                     self.position = 0;
                     self.buffer[self.position] = byte;
                     self.state = State::AwaitingLenth;
-                    ParseResult::Incomplete
+                    Ok(None)
                 } else {
                     self.state = State::AwaitingSync;
-                    ParseResult::Error(CrsfStreamError::InvalidSync(byte))
+                    Err(CrsfStreamError::InvalidSync(byte))
                 }
             }
             State::AwaitingLenth => {
@@ -60,12 +56,12 @@ impl CrsfParser {
                 if !(constants::CRSF_MIN_PACKET_SIZE..constants::CRSF_MAX_PACKET_SIZE).contains(&n)
                 {
                     self.reset();
-                    return ParseResult::Error(CrsfStreamError::InvalidPacketLength(byte));
+                    return Err(CrsfStreamError::InvalidPacketLength(byte));
                 }
                 self.position = 1;
                 self.buffer[self.position] = byte;
                 self.state = State::Reading(n - 1);
-                ParseResult::Incomplete
+                Ok(None)
             }
             State::Reading(n) => {
                 self.position += 1;
@@ -73,7 +69,7 @@ impl CrsfParser {
                 if self.position == n - 1 {
                     self.state = State::AwaitingCrc;
                 }
-                ParseResult::Incomplete
+                Ok(None)
             }
             State::AwaitingCrc => {
                 self.position += 1;
@@ -86,7 +82,7 @@ impl CrsfParser {
 
                 if calculated_crc != packet_crc {
                     self.reset();
-                    return ParseResult::Error(CrsfStreamError::InvalidCrc {
+                    return Err(CrsfStreamError::InvalidCrc {
                         calculated_crc,
                         packet_crc,
                     });
@@ -96,8 +92,8 @@ impl CrsfParser {
                 self.reset();
                 let bytes = &self.buffer[start..end];
                 match RawCrsfPacket::new(bytes) {
-                    Some(packet) => ParseResult::Complete(packet),
-                    None => ParseResult::Error(CrsfStreamError::InputBufferTooSmall),
+                    None => Err(CrsfStreamError::InputBufferTooSmall),
+                    Some(packet) => Ok(Some(packet)),
                 }
             }
         }
@@ -111,14 +107,14 @@ impl CrsfParser {
         }
     }
 
-    pub fn push_byte(&mut self, byte: u8) -> ParseResult<Packet> {
+    pub fn push_byte(&mut self, byte: u8) -> Result<Option<Packet>, CrsfStreamError> {
         match self.push_byte_raw(byte) {
-            ParseResult::Complete(raw_packet) => match Packet::parse(&raw_packet) {
-                Ok(packet) => ParseResult::Complete(packet),
-                Err(e) => ParseResult::Error(CrsfStreamError::ParsingError(e)),
+            Ok(Some(raw_packet)) => match Packet::parse(&raw_packet) {
+                Ok(packet) => Ok(Some(packet)),
+                Err(e) => Err(CrsfStreamError::ParsingError(e)),
             },
-            ParseResult::Incomplete => ParseResult::Incomplete,
-            ParseResult::Error(e) => ParseResult::Error(e),
+            Ok(None) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -210,9 +206,9 @@ impl Iterator for PacketIterator<'_, '_> {
             self.pos += 1;
 
             match self.parser.push_byte(byte) {
-                ParseResult::Complete(packet) => return Some(Ok(packet)),
-                ParseResult::Incomplete => (),
-                ParseResult::Error(err) => return Some(Err(err)),
+                Ok(Some(packet)) => return Some(Ok(packet)),
+                Ok(None) => (),
+                Err(err) => return Some(Err(err)),
             }
         }
         None
@@ -228,7 +224,6 @@ mod tests {
         write_packet_to_buffer, CrsfPacket, LinkStatistics, PacketAddress, PacketType,
         RcChannelsPacked,
     };
-    use crate::parser::ParseResult;
 
     #[test]
     fn test_construction() {
@@ -237,12 +232,12 @@ mod tests {
 
         for b in &raw_bytes[0..raw_bytes.len() - 1] {
             let result = parser.push_byte_raw(*b);
-            assert!(matches!(result, ParseResult::Incomplete));
+            assert!(matches!(result, Ok(None)));
         }
 
         let p = parser.push_byte_raw(raw_bytes[13]);
         let raw_packet = match p {
-            ParseResult::Complete(packet) => packet,
+            Ok(Some(packet)) => packet,
             _ => panic!("Expected complete packet"),
         };
         assert_eq!(raw_packet.len(), raw_bytes.len());
@@ -313,16 +308,16 @@ mod tests {
         let mut parser = CrsfParser::new();
 
         // 1. Parse raw bytes to get a RawCrsfPacket
-        let mut raw_packet_result = ParseResult::Incomplete;
+        let mut raw_packet_result = Ok(None);
         for &byte in raw_bytes {
             raw_packet_result = parser.push_byte_raw(byte);
-            if let ParseResult::Complete(_) = &raw_packet_result {
+            if let Ok(Some(_)) = &raw_packet_result {
                 break;
             }
         }
 
         let raw_packet = match raw_packet_result {
-            ParseResult::Complete(packet) => packet,
+            Ok(Some(packet)) => packet,
             res => panic!("Expected a complete raw packet, but got {:?}", res),
         };
 
