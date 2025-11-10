@@ -235,11 +235,11 @@ mod tests {
             assert!(matches!(result, Ok(None)));
         }
 
-        let p = parser.push_byte_raw(raw_bytes[13]);
-        let raw_packet = match p {
-            Ok(Some(packet)) => packet,
-            _ => panic!("Expected complete packet"),
-        };
+        let raw_packet_result = parser.push_byte_raw(raw_bytes[13]);
+        let raw_packet = raw_packet_result
+            .expect("Failed to get raw packet result")
+            .expect("Expected a complete raw packet, but got None");
+
         assert_eq!(raw_packet.len(), raw_bytes.len());
 
         assert_eq!(raw_packet.payload().len(), LinkStatistics::MIN_PAYLOAD_SIZE);
@@ -315,13 +315,10 @@ mod tests {
                 break;
             }
         }
+        let raw_packet = raw_packet_result
+            .expect("Failed to get raw packet result")
+            .expect("Expected a complete raw packet, but got None");
 
-        let raw_packet = match raw_packet_result {
-            Ok(Some(packet)) => packet,
-            res => panic!("Expected a complete raw packet, but got {:?}", res),
-        };
-
-        // 2. Convert the RawCrsfPacket to a typed Packet
         let packet = Packet::parse(&raw_packet).expect("Failed to parse raw packet into a Packet");
 
         // Verify the resulting packet

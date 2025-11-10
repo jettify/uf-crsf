@@ -90,10 +90,7 @@ mod tests {
         let packet = Game::from_bytes(&data).unwrap();
         assert_eq!(packet.dst_addr, 0xEA);
         assert_eq!(packet.src_addr, 0xEE);
-        match packet.payload {
-            GamePayload::AddPoints(points) => assert_eq!(points, 100),
-            _ => panic!("Incorrect payload type"),
-        }
+        assert!(matches!(packet.payload, GamePayload::AddPoints(points) if points ==  100));
     }
 
     #[test]
@@ -116,10 +113,7 @@ mod tests {
         let packet = Game::from_bytes(&data).unwrap();
         assert_eq!(packet.dst_addr, 0xC8);
         assert_eq!(packet.src_addr, 0xEC);
-        match packet.payload {
-            GamePayload::CommandCode(code) => assert_eq!(code, 0x1234),
-            _ => panic!("Incorrect payload type"),
-        }
+        assert!(matches!(packet.payload, GamePayload::CommandCode(code) if code ==  0x1234));
     }
 
     #[test]
