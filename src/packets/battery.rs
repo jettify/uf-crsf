@@ -3,7 +3,7 @@ use crate::packets::PacketType;
 use crate::CrsfParsingError;
 
 /// Represents a Battery Sensor packet.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Battery {
     /// Voltage (in 10mV units, e.g., 1234 is 12.34V).
@@ -14,6 +14,17 @@ pub struct Battery {
     pub capacity_used: u32,
     /// Battery remaining (percent).
     pub remaining: u8,
+}
+
+impl Battery {
+    pub fn new(voltage: i16, current: i16, capacity_used: u32, remaining: u8) -> Self {
+        Self {
+            voltage,
+            current,
+            capacity_used,
+            remaining,
+        }
+    }
 }
 
 impl CrsfPacket for Battery {
