@@ -3,7 +3,7 @@ use crate::CrsfParsingError;
 use core::mem::size_of;
 
 /// Represents an Attitude packet (frame type 0x1E).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Attitude {
     /// Pitch angle in 100 µrad units.
@@ -12,6 +12,12 @@ pub struct Attitude {
     pub roll: i16,
     /// Yaw angle in 100 µrad units.
     pub yaw: i16,
+}
+
+impl Attitude {
+    pub fn new(pitch: i16, roll: i16, yaw: i16) -> Self {
+        Self { pitch, roll, yaw }
+    }
 }
 
 impl CrsfPacket for Attitude {

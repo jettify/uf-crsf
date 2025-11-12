@@ -5,11 +5,17 @@ use crate::CrsfParsingError;
 /// Represents an Airspeed packet.
 ///
 /// This packet is used to transmit airspeed data from the vehicle.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AirSpeed {
     /// Airspeed in 0.1 * km/h (hectometers/h).
     pub speed: u16,
+}
+
+impl AirSpeed {
+    pub fn new(speed: u16) -> Self {
+        Self { speed }
+    }
 }
 
 impl CrsfPacket for AirSpeed {
