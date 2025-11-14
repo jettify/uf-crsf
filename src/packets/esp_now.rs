@@ -18,6 +18,24 @@ pub struct EspNow {
     pub free_text: [u8; 20],
 }
 
+impl EspNow {
+    pub fn new(
+        val1: u8,
+        val2: u8,
+        val3: [u8; 15],
+        val4: [u8; 15],
+        free_text: [u8; 20],
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            val1,
+            val2,
+            val3,
+            val4,
+            free_text,
+        })
+    }
+}
+
 impl CrsfPacket for EspNow {
     const PACKET_TYPE: PacketType = PacketType::EspNow;
     const MIN_PAYLOAD_SIZE: usize =

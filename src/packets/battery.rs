@@ -17,13 +17,18 @@ pub struct Battery {
 }
 
 impl Battery {
-    pub fn new(voltage: i16, current: i16, capacity_used: u32, remaining: u8) -> Self {
-        Self {
+    pub fn new(
+        voltage: i16,
+        current: i16,
+        capacity_used: u32,
+        remaining: u8,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
             voltage,
             current,
             capacity_used,
             remaining,
-        }
+        })
     }
 }
 

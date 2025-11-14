@@ -9,6 +9,12 @@ pub struct DevicePing {
     pub src_addr: u8,
 }
 
+impl DevicePing {
+    pub fn new(dst_addr: u8, src_addr: u8) -> Result<Self, CrsfParsingError> {
+        Ok(Self { dst_addr, src_addr })
+    }
+}
+
 impl CrsfPacket for DevicePing {
     const PACKET_TYPE: PacketType = PacketType::DevicePing;
     const MIN_PAYLOAD_SIZE: usize = 2 * size_of::<u8>();
