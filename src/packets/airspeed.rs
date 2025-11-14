@@ -13,8 +13,8 @@ pub struct AirSpeed {
 }
 
 impl AirSpeed {
-    pub fn new(speed: u16) -> Self {
-        Self { speed }
+    pub fn new(speed: u16) -> Result<Self, CrsfParsingError> {
+        Ok(Self { speed })
     }
 }
 

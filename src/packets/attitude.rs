@@ -15,8 +15,8 @@ pub struct Attitude {
 }
 
 impl Attitude {
-    pub fn new(pitch: i16, roll: i16, yaw: i16) -> Self {
-        Self { pitch, roll, yaw }
+    pub fn new(pitch: i16, roll: i16, yaw: i16) -> Result<Self, CrsfParsingError> {
+        Ok(Self { pitch, roll, yaw })
     }
 }
 

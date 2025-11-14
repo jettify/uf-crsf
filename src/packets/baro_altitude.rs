@@ -20,11 +20,11 @@ pub struct BaroAltitude {
 }
 
 impl BaroAltitude {
-    pub fn new(altitude_packed: u16, vertical_speed_packed: i8) -> Self {
-        Self {
+    pub fn new(altitude_packed: u16, vertical_speed_packed: i8) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
             altitude_packed,
             vertical_speed_packed,
-        }
+        })
     }
 }
 
