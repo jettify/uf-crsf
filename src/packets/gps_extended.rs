@@ -32,6 +32,39 @@ pub struct GpsExtended {
     pub v_dop: u8,
 }
 
+impl GpsExtended {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        fix_type: u8,
+        n_speed: i16,
+        e_speed: i16,
+        v_speed: i16,
+        h_speed_acc: i16,
+        track_acc: i16,
+        alt_ellipsoid: i16,
+        h_acc: i16,
+        v_acc: i16,
+        reserved: u8,
+        h_dop: u8,
+        v_dop: u8,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            fix_type,
+            n_speed,
+            e_speed,
+            v_speed,
+            h_speed_acc,
+            track_acc,
+            alt_ellipsoid,
+            h_acc,
+            v_acc,
+            reserved,
+            h_dop,
+            v_dop,
+        })
+    }
+}
+
 impl CrsfPacket for GpsExtended {
     const PACKET_TYPE: PacketType = PacketType::GpsExtended;
     const MIN_PAYLOAD_SIZE: usize = 4 * size_of::<u8>() + (4 + 4) * size_of::<i16>();
