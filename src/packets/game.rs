@@ -14,6 +14,16 @@ pub struct Game {
     pub payload: GamePayload,
 }
 
+impl Game {
+    pub fn new(dst_addr: u8, src_addr: u8, payload: GamePayload) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            dst_addr,
+            src_addr,
+            payload,
+        })
+    }
+}
+
 /// Enum for the different payloads of a Game packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

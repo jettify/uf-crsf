@@ -21,6 +21,26 @@ pub struct Gps {
     pub satellites: u8,
 }
 
+impl Gps {
+    pub fn new(
+        latitude: i32,
+        longitude: i32,
+        groundspeed: u16,
+        heading: u16,
+        altitude: u16,
+        satellites: u8,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            latitude,
+            longitude,
+            groundspeed,
+            heading,
+            altitude,
+            satellites,
+        })
+    }
+}
+
 impl CrsfPacket for Gps {
     const PACKET_TYPE: PacketType = PacketType::Gps;
     const MIN_PAYLOAD_SIZE: usize = 2 * size_of::<i32>() + 3 * size_of::<u16>() + size_of::<u8>();

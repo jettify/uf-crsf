@@ -31,6 +31,35 @@ pub struct LinkStatistics {
     pub downlink_snr: i8,
 }
 
+impl LinkStatistics {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        uplink_rssi_1: u8,
+        uplink_rssi_2: u8,
+        uplink_link_quality: u8,
+        uplink_snr: i8,
+        active_antenna: u8,
+        rf_mode: u8,
+        uplink_tx_power: u8,
+        downlink_rssi: u8,
+        downlink_link_quality: u8,
+        downlink_snr: i8,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            uplink_rssi_1,
+            uplink_rssi_2,
+            uplink_link_quality,
+            uplink_snr,
+            active_antenna,
+            rf_mode,
+            uplink_tx_power,
+            downlink_rssi,
+            downlink_link_quality,
+            downlink_snr,
+        })
+    }
+}
+
 impl CrsfPacket for LinkStatistics {
     const PACKET_TYPE: PacketType = PacketType::LinkStatistics;
     // there are 8 fields for u8 linter has false positive that code tries

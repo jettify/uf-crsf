@@ -18,6 +18,24 @@ pub struct LinkStatisticsRx {
     pub rf_power_db: u8,
 }
 
+impl LinkStatisticsRx {
+    pub fn new(
+        rssi_db: u8,
+        rssi_percent: u8,
+        link_quality: u8,
+        snr: i8,
+        rf_power_db: u8,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            rssi_db,
+            rssi_percent,
+            link_quality,
+            snr,
+            rf_power_db,
+        })
+    }
+}
+
 impl CrsfPacket for LinkStatisticsRx {
     const PACKET_TYPE: PacketType = PacketType::LinkStatisticsRx;
     const MIN_PAYLOAD_SIZE: usize = 5;

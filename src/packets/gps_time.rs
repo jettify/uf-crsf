@@ -18,6 +18,28 @@ pub struct GpsTime {
     pub millisecond: u16,
 }
 
+impl GpsTime {
+    pub fn new(
+        year: i16,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        millisecond: u16,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            millisecond,
+        })
+    }
+}
+
 impl CrsfPacket for GpsTime {
     const PACKET_TYPE: PacketType = PacketType::GpsTime;
     const MIN_PAYLOAD_SIZE: usize = size_of::<i16>() + 5 * size_of::<u8>() + size_of::<u16>();
