@@ -18,6 +18,20 @@ pub struct Remote {
     pub payload: RemotePayload,
 }
 
+impl Remote {
+    pub fn new(
+        dst_addr: u8,
+        src_addr: u8,
+        payload: RemotePayload,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            dst_addr,
+            src_addr,
+            payload,
+        })
+    }
+}
+
 /// Enum for the different payloads of a Remote packet.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

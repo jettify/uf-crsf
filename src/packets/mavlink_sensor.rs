@@ -18,6 +18,24 @@ pub struct MavLinkSensor {
     pub sensor_health: u32,
 }
 
+impl MavLinkSensor {
+    pub fn new(
+        dst_addr: u8,
+        src_addr: u8,
+        sensor_present: u32,
+        sensor_enabled: u32,
+        sensor_health: u32,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            dst_addr,
+            src_addr,
+            sensor_present,
+            sensor_enabled,
+            sensor_health,
+        })
+    }
+}
+
 impl CrsfPacket for MavLinkSensor {
     const PACKET_TYPE: PacketType = PacketType::MavLinkSensor;
     const MIN_PAYLOAD_SIZE: usize = 2 * size_of::<u8>() + 3 * size_of::<u32>();
