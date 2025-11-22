@@ -17,6 +17,24 @@ pub struct MavLinkFc {
     pub firmware_type: u8,
 }
 
+impl MavLinkFc {
+    pub fn new(
+        airspeed: i16,
+        base_mode: u8,
+        custom_mode: u32,
+        autopilot_type: u8,
+        firmware_type: u8,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            airspeed,
+            base_mode,
+            custom_mode,
+            autopilot_type,
+            firmware_type,
+        })
+    }
+}
+
 impl CrsfPacket for MavLinkFc {
     const PACKET_TYPE: PacketType = PacketType::MavLinkFc;
     const MIN_PAYLOAD_SIZE: usize = 9;
