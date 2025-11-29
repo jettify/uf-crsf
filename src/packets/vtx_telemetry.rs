@@ -20,6 +20,26 @@ pub struct VtxTelemetry {
     pub pitmode_switch: u8,
 }
 
+impl VtxTelemetry {
+    pub fn new(
+        origin_address: u8,
+        power_dbm: u8,
+        frequency_mhz: u16,
+        pit_mode: bool,
+        pitmode_control: u8,
+        pitmode_switch: u8,
+    ) -> Result<Self, CrsfParsingError> {
+        Ok(Self {
+            origin_address,
+            power_dbm,
+            frequency_mhz,
+            pit_mode,
+            pitmode_control,
+            pitmode_switch,
+        })
+    }
+}
+
 impl CrsfPacket for VtxTelemetry {
     const PACKET_TYPE: PacketType = PacketType::VtxTelemetry;
     const MIN_PAYLOAD_SIZE: usize = 5;
@@ -61,14 +81,7 @@ mod tests {
 
     #[test]
     fn test_vtx_telemetry_to_bytes() {
-        let vtx_telemetry = VtxTelemetry {
-            origin_address: 0xEE,
-            power_dbm: 25,
-            frequency_mhz: 5800,
-            pit_mode: true,
-            pitmode_control: 2,
-            pitmode_switch: 5,
-        };
+        let vtx_telemetry = VtxTelemetry::new(0xEE, 25, 5800, true, 2, 5).unwrap();
 
         let mut buffer = [0u8; VtxTelemetry::MIN_PAYLOAD_SIZE];
         vtx_telemetry.to_bytes(&mut buffer).unwrap();
