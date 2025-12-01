@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/jettify/uf-crsf/compare/v0.3.0...v0.4.0) - 2025-12-01
+
+### Added
+
+- Add new method for mavlink packets. ([#82](https://github.com/jettify/uf-crsf/issues/82))
+- Add new method for gps and link statisticks packets. ([#81](https://github.com/jettify/uf-crsf/issues/81))
+- Implement missing new method in first packets. ([#79](https://github.com/jettify/uf-crsf/issues/79))
+- [**breaking**] Rework parser output type from custom to Result<Option<>>. ([#76](https://github.com/jettify/uf-crsf/issues/76))
+- Implement embedded io traits integration. ([#71](https://github.com/jettify/uf-crsf/issues/71))
+- Added Mavlink Sensor status packet. ([#68](https://github.com/jettify/uf-crsf/issues/68))
+- Add CRSF logging packet. ([#52](https://github.com/jettify/uf-crsf/issues/52))
+
+### Fixed
+
+- Fixed panic when device ping packet too small. ([#59](https://github.com/jettify/uf-crsf/issues/59))
+- make from_bytes safe for small buffers ([#54](https://github.com/jettify/uf-crsf/issues/54))
+
+### Other
+
+- Upgrade actions tools version. ([#85](https://github.com/jettify/uf-crsf/issues/85))
+- Add advanced example to readme. ([#84](https://github.com/jettify/uf-crsf/issues/84))
+- Add new methods for vario and vtx telemetry, add tests for vario. ([#83](https://github.com/jettify/uf-crsf/issues/83))
+- Consistent interface to construct packet with new that returns Optional. ([#80](https://github.com/jettify/uf-crsf/issues/80))
+- More idiomatic asserts in parser and game packet tests. ([#78](https://github.com/jettify/uf-crsf/issues/78))
+- Run code coverage in same pipeline with tests. ([#75](https://github.com/jettify/uf-crsf/issues/75))
+- Rename features for ebedded io. ([#74](https://github.com/jettify/uf-crsf/issues/74))
+- Revert "chore!: Channge license to GPL3 ([#69](https://github.com/jettify/uf-crsf/issues/69))" ([#73](https://github.com/jettify/uf-crsf/issues/73))
+- Add async example. ([#72](https://github.com/jettify/uf-crsf/issues/72))
+- Add code coverage reporting. ([#70](https://github.com/jettify/uf-crsf/issues/70))
+- [**breaking**] Channge license to GPL3 ([#69](https://github.com/jettify/uf-crsf/issues/69))
+- Document raw packet. ([#67](https://github.com/jettify/uf-crsf/issues/67))
+- Improve test coverage for gps time packet. ([#66](https://github.com/jettify/uf-crsf/issues/66))
+- Add test case for buffer too small for gps extended packet. ([#65](https://github.com/jettify/uf-crsf/issues/65))
+- Add basinc CONTRIBUTING file. ([#64](https://github.com/jettify/uf-crsf/issues/64))
+- Add just file groupsing to make output nicer. ([#63](https://github.com/jettify/uf-crsf/issues/63))
+- Improve justfile ergonomics. ([#62](https://github.com/jettify/uf-crsf/issues/62))
+- Add test case for esp and flight mode packet for buffer too small ([#61](https://github.com/jettify/uf-crsf/issues/61))
+- Add test cases when buffer to small for Game packet. ([#60](https://github.com/jettify/uf-crsf/issues/60))
+- Cleanup comments, add dedicated section for examples. ([#58](https://github.com/jettify/uf-crsf/issues/58))
+- Improve test coverage for battery packet. ([#57](https://github.com/jettify/uf-crsf/issues/57))
+- Improve error handling for baro altitude packet. ([#56](https://github.com/jettify/uf-crsf/issues/56))
+- Add test cases for errors in attitude packets. ([#55](https://github.com/jettify/uf-crsf/issues/55))
+
 ## [0.3.0](https://github.com/jettify/uf-crsf/compare/v0.2.1...v0.3.0) - 2025-09-06
 
 ### Fixed
