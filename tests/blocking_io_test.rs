@@ -2,9 +2,8 @@
 #![cfg(test)]
 extern crate std;
 
-use uf_crsf::blocking_io::write_packet_blocking;
+use uf_crsf::blocking_io::{write_packet, BlockingCrsfReader};
 use uf_crsf::packets::{LinkStatistics, Packet, PacketAddress};
-use uf_crsf::parser::CrsfParser;
 use uf_crsf::CrsfStreamError;
 
 fn build_link_statistics_packet_bytes() -> std::vec::Vec<u8> {
@@ -21,7 +20,7 @@ fn build_link_statistics_packet_bytes() -> std::vec::Vec<u8> {
         downlink_snr: -75,
     };
     let mut buffer = std::vec::Vec::new();
-    write_packet_blocking(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
+    write_packet(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
     buffer
 }
 
@@ -32,8 +31,8 @@ fn test_write_and_read_packet_blocking() {
     // Mock reader
     let mut reader = &packet_bytes[..];
 
-    let mut parser = CrsfParser::new();
-    let result = parser.read_packet_blocking(&mut reader);
+    let mut crsf_reader = BlockingCrsfReader::new(&mut reader);
+    let result = crsf_reader.read_packet();
 
     let parsed_packet = result.unwrap();
 
@@ -55,8 +54,8 @@ fn test_write_and_read_packet_blocking() {
 #[test]
 fn test_read_packet_blocking_with_no_data() {
     let mut reader = &[][..];
-    let mut parser = CrsfParser::new();
-    let result = parser.read_packet_blocking(&mut reader);
+    let mut crsf_reader = BlockingCrsfReader::new(&mut reader);
+    let result = crsf_reader.read_packet();
     assert!(matches!(result, Err(CrsfStreamError::UnexpectedEof)));
 }
 
@@ -64,8 +63,8 @@ fn test_read_packet_blocking_with_no_data() {
 fn test_read_packet_blocking_with_incomplete_data() {
     let packet_bytes = build_link_statistics_packet_bytes();
     let mut reader = &packet_bytes[..packet_bytes.len() - 1];
-    let mut parser = CrsfParser::new();
-    let result = parser.read_packet_blocking(&mut reader);
+    let mut crsf_reader = BlockingCrsfReader::new(&mut reader);
+    let result = crsf_reader.read_packet();
     assert!(matches!(result, Err(CrsfStreamError::UnexpectedEof)));
 }
 
@@ -73,8 +72,8 @@ fn test_read_packet_blocking_with_incomplete_data() {
 fn test_read_packet_blocking_with_garbage() {
     let garbage = [0x01, 0x02, 0x03];
     let mut reader = &garbage[..];
-    let mut parser = CrsfParser::new();
-    let result = parser.read_packet_blocking(&mut reader);
+    let mut crsf_reader = BlockingCrsfReader::new(&mut reader);
+    let result = crsf_reader.read_packet();
     // We expect an InvalidSync error because the first byte is not a valid sync byte.
     assert!(matches!(result, Err(CrsfStreamError::InvalidSync(_))));
 }
