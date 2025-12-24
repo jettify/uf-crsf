@@ -1,34 +1,52 @@
 use crate::error::CrsfStreamError;
 use crate::packets::{write_packet_to_buffer, CrsfPacket, Packet, PacketAddress};
 use crate::parser::CrsfParser;
-use embedded_io_async::{Error, Read, Write};
+use embedded_io_async::{Error, Write};
+use heapless::Deque;
 
-impl CrsfParser {
-    /// Asynchronously reads a complete CRSF packet from an `embedded_io_async::Read` stream.
-    ///
-    /// This function reads bytes in chunks from the provided `reader` and pushes them
-    /// into the parser one byte at time.
-    pub async fn read_packet<R: Read>(
-        &mut self,
-        reader: &mut R,
-    ) -> Result<Packet, CrsfStreamError> {
-        let mut buf = [0; 64]; // 64 is max packet size for CRSF
+const ASYNC_IO_BUFFER_SIZE: usize = crate::constants::CRSF_MAX_PACKET_SIZE * 2;
+
+pub struct AsyncCrsfReader<R> {
+    parser: CrsfParser,
+    reader: R,
+    input_buffer: Deque<u8, ASYNC_IO_BUFFER_SIZE>,
+}
+
+/// Asynchronously writes a CRSF packet to an `embedded_io_async::Write` stream.
+impl<R: embedded_io_async::Read> AsyncCrsfReader<R> {
+    pub fn new(reader: R) -> Self {
+        Self {
+            parser: CrsfParser::new(),
+            reader,
+            input_buffer: Deque::new(),
+        }
+    }
+
+    pub async fn read_packet(&mut self) -> Result<Packet, CrsfStreamError> {
+        let mut temp_read_buf = [0; crate::constants::CRSF_MAX_PACKET_SIZE];
+
         loop {
-            let n = reader
-                .read(&mut buf)
+            while let Some(byte) = self.input_buffer.pop_front() {
+                match self.parser.push_byte(byte) {
+                    Ok(Some(packet)) => return Ok(packet),
+                    Ok(None) => (),
+                    Err(e) => return Err(e),
+                }
+            }
+            let bytes_read = self
+                .reader
+                .read(&mut temp_read_buf)
                 .await
                 .map_err(|e| CrsfStreamError::Io(e.kind()))?;
-            if n == 0 {
-                // This indicates a stream has closed.
+
+            if bytes_read == 0 {
                 return Err(CrsfStreamError::UnexpectedEof);
             }
 
-            for b in &buf[0..n] {
-                match self.push_byte(*b) {
-                    Ok(Some(packet)) => return Ok(packet),
-                    Ok(None) => continue,
-                    Err(e) => return Err(e),
-                }
+            for byte in &temp_read_buf[..bytes_read] {
+                self.input_buffer
+                    .push_back(*byte)
+                    .map_err(|_| CrsfStreamError::InputBufferTooSmall)?;
             }
         }
     }

@@ -4,7 +4,7 @@ use std::process::exit;
 use std::time::Duration;
 
 use tokio_serial::SerialPortBuilderExt;
-use uf_crsf::CrsfParser;
+use uf_crsf::async_io::AsyncCrsfReader;
 
 #[tokio::main]
 async fn main() {
@@ -33,12 +33,12 @@ async fn main() {
             exit(1);
         });
 
-    let mut adapted_port = FromTokio::new(&mut port);
-    let mut parser = CrsfParser::new();
+    let adapted_port = FromTokio::new(&mut port);
+    let mut reader = AsyncCrsfReader::new(adapted_port);
     println!("Reading from serial port '{}'...", path);
 
     loop {
-        match parser.read_packet(&mut adapted_port).await {
+        match reader.read_packet().await {
             Ok(packet) => {
                 println!("{:?}", packet);
             }

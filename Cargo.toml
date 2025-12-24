@@ -32,7 +32,7 @@ embedded-io-async = "0.7.0"
 [[example]]
 name = "async"
 path = "examples/local_async.rs"
-required-features = ["async"]
+required-features = ["embedded_io_async"]
 test = false
 
 
