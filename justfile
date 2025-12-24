@@ -2,6 +2,10 @@
 default:
   just --list
 
+alias b := build
+alias t := test
+alias l := lint
+
 # Run cargo doc
 [group('build')]
 doc:
@@ -10,7 +14,8 @@ doc:
 # Run cargo build
 [group('build')]
 build:
-  cargo build --verbose
+  cargo build
+  cargo build --examples --features=embedded_io_async,embedded_io
 
 # Run cargo clean
 [group('build')]
@@ -78,7 +83,7 @@ cov:
 # Run same testing commands as on CI server
 [group('test')]
 ci:
-  cargo clippy --all -- -D warnings
-  cargo build --verbose
-  cargo test --all-features --verbose
-  cargo test --examples
+  just lint
+  just build
+  cargo test --all-features
+  cargo test --examples --features=embedded_io_async,embedded_io
