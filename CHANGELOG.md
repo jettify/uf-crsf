@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/jettify/uf-crsf/compare/v0.4.0...v0.5.0) - 2025-12-24
+
+### Fixed
+
+- [**breaking**] Rework embedded io implementations. ([#86](https://github.com/jettify/uf-crsf/issues/86))
+
+### Other
+
+- Update async example after embedded io fix/rework. ([#89](https://github.com/jettify/uf-crsf/issues/89))
+
 ## [0.4.0](https://github.com/jettify/uf-crsf/compare/v0.3.0...v0.4.0) - 2025-12-01
 
 ### Added
