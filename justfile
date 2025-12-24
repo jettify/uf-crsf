@@ -54,6 +54,11 @@ example_raw:
 example_simple:
   cargo run --example=simple
 
+# Run example local_simple that parses hard coded buffer.
+[group('examples')]
+example_async:
+  cargo run --example=async --all-features
+
 # Lint source code with strict linter
 [group('lint')]
 pedantic:
