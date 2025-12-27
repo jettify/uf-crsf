@@ -37,6 +37,13 @@ test = false
 
 
 [[example]]
+name = "blocking"
+path = "examples/local_blocking.rs"
+required-features = ["embedded_io"]
+test = false
+
+
+[[example]]
 name = "raw"
 path = "examples/local_raw.rs"
 # requires libudev installed
