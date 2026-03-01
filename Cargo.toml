@@ -47,13 +47,13 @@ test = false
 [[example]]
 name = "raw"
 path = "examples/local_raw.rs"
-# requires libudev installed
+# requires libudev installed for USB accesss
 test = false
 
 [[example]]
 name = "std"
 path = "examples/local_std.rs"
-# requires libudev installed
+# requires libudev installed for USB accesss
 test = false
 
 [[example]]

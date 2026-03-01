@@ -81,6 +81,17 @@ mod tests {
     use crate::packets::{write_packet_to_buffer, PacketAddress};
 
     #[test]
+    fn test_gps_new() {
+        let gps = Gps::new(1, 2, 3, 4, 5, 6).unwrap();
+        assert_eq!(gps.latitude, 1);
+        assert_eq!(gps.longitude, 2);
+        assert_eq!(gps.groundspeed, 3);
+        assert_eq!(gps.heading, 4);
+        assert_eq!(gps.altitude, 5);
+        assert_eq!(gps.satellites, 6);
+    }
+
+    #[test]
     fn test_gps_from_bytes() {
         assert_eq!(Gps::MIN_PAYLOAD_SIZE, 15);
         let gps = Gps {
@@ -123,14 +134,7 @@ mod tests {
 
     #[test]
     fn test_gps_round_trip() {
-        let gps = Gps {
-            latitude: 525200000,
-            longitude: 134050000,
-            groundspeed: 5000,
-            heading: 18000,
-            altitude: 1100,
-            satellites: 12,
-        };
+        let gps = Gps::new(525200000, 134050000, 5000, 18000, 1100, 12).unwrap();
 
         let mut buffer: [u8; 15] = [0; 15];
         gps.to_bytes(&mut buffer).unwrap();

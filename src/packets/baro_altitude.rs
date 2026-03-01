@@ -102,6 +102,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_baro_altitude_new() {
+        let packet = BaroAltitude::new(12345, -50).unwrap();
+        assert_eq!(packet.altitude_packed, 12345);
+        assert_eq!(packet.vertical_speed_packed, -50);
+    }
+
+    #[test]
     fn test_altitude_packing() {
         assert_eq!(BaroAltitude::get_altitude_packed(-10000), 0);
         assert_eq!(BaroAltitude::get_altitude_packed(22766), 32766);

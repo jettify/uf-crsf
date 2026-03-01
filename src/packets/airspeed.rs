@@ -43,9 +43,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_airspeed_new() {
+        let airspeed = AirSpeed::new(1234).unwrap();
+        assert_eq!(airspeed.speed, 1234);
+    }
+
+    #[test]
     fn test_airspeed_to_bytes() {
         assert_eq!(AirSpeed::MIN_PAYLOAD_SIZE, 2);
-        let airspeed = AirSpeed { speed: 1234 };
+        let airspeed = AirSpeed::new(1234).unwrap();
         let mut buffer = [0u8; AirSpeed::MIN_PAYLOAD_SIZE];
         let _ = airspeed.to_bytes(&mut buffer);
         assert_eq!(buffer, [0x04, 0xD2]);

@@ -189,4 +189,11 @@ mod tests {
             Err(CrsfParsingError::InvalidPayloadLength)
         ));
     }
+
+    #[test]
+    fn test_mavlink_envelope_new_data_too_long() {
+        let payload = [0xAB; 59];
+        let result = MavlinkEnvelope::new(1, 0, &payload);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }

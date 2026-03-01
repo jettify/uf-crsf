@@ -144,4 +144,11 @@ mod tests {
         assert_eq!(len, 1);
         assert_eq!(buffer[0], 0);
     }
+
+    #[test]
+    fn test_flight_mode_new_too_long() {
+        let mode = "x".repeat(MAX_FLIGHT_MODE_LEN + 1);
+        let result = FlightMode::new(&mode);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }

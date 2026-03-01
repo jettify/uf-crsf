@@ -207,4 +207,11 @@ mod tests {
             Err(CrsfParsingError::InvalidPayloadLength)
         );
     }
+
+    #[test]
+    fn test_logging_new_too_many_params() {
+        let params = [0u32; 14];
+        let result = Logging::new(0xEA, 0xEE, 123, 456, &params);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }

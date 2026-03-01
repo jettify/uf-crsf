@@ -121,6 +121,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_remote_new() {
+        let packet = Remote::new(
+            0xEA,
+            0xEE,
+            RemotePayload::TimingCorrection(TimingCorrection {
+                update_interval: 50000,
+                offset: -7,
+            }),
+        )
+        .unwrap();
+        assert_eq!(packet.dst_addr, 0xEA);
+        assert_eq!(packet.src_addr, 0xEE);
+        match packet.payload {
+            RemotePayload::TimingCorrection(tc) => {
+                assert_eq!(tc.update_interval, 50000);
+                assert_eq!(tc.offset, -7);
+            }
+        }
+    }
+
+    #[test]
     fn test_timing_correction_from_bytes() {
         // Full payload for a 0x3A packet
         let data: [u8; 11] = [

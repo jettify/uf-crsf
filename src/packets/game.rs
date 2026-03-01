@@ -95,6 +95,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_game_new() {
+        let packet = Game::new(0xEA, 0xEE, GamePayload::AddPoints(100)).unwrap();
+        assert_eq!(packet.dst_addr, 0xEA);
+        assert_eq!(packet.src_addr, 0xEE);
+        assert!(matches!(packet.payload, GamePayload::AddPoints(100)));
+    }
+
+    #[test]
     fn test_add_points_from_bytes() {
         let data: [u8; 5] = [0xEA, 0xEE, ADD_POINTS_SUB_TYPE, 0x00, 0x64]; // 100 points
         let packet = Game::from_bytes(&data).unwrap();
@@ -105,11 +113,7 @@ mod tests {
 
     #[test]
     fn test_add_points_to_bytes() {
-        let packet = Game {
-            dst_addr: 0xEA,
-            src_addr: 0xEE,
-            payload: GamePayload::AddPoints(100),
-        };
+        let packet = Game::new(0xEA, 0xEE, GamePayload::AddPoints(100)).unwrap();
         let mut buffer = [0u8; 5];
         let len = packet.to_bytes(&mut buffer).unwrap();
         assert_eq!(len, 5);

@@ -702,4 +702,17 @@ mod tests {
         let result = packet.to_bytes(&mut buffer);
         assert!(matches!(result, Err(CrsfParsingError::BufferOverflow)));
     }
+
+    #[test]
+    fn test_command_ack_information_accessor() {
+        let ack = CommandAck::new(0x10, 0x01, 1, b"OK").unwrap();
+        assert_eq!(ack.information(), b"OK");
+    }
+
+    #[test]
+    fn test_command_ack_new_too_long_information() {
+        let information = [0u8; 49];
+        let result = CommandAck::new(0x10, 0x01, 1, &information);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }
