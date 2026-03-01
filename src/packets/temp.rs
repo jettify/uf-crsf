@@ -152,4 +152,11 @@ mod tests {
         let round_trip_temp = Temp::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(temp, round_trip_temp);
     }
+
+    #[test]
+    fn test_temp_new_too_many_values() {
+        let values = [0i16; 21];
+        let result = Temp::new(1, &values);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }

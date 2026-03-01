@@ -106,6 +106,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_link_statistics_new() {
+        let packet = LinkStatistics::new(100, 75, 90, -10, 1, 2, 20, 110, 80, -5).unwrap();
+        assert_eq!(packet.uplink_rssi_1, 100);
+        assert_eq!(packet.uplink_rssi_2, 75);
+        assert_eq!(packet.uplink_link_quality, 90);
+        assert_eq!(packet.uplink_snr, -10);
+        assert_eq!(packet.active_antenna, 1);
+        assert_eq!(packet.rf_mode, 2);
+        assert_eq!(packet.uplink_tx_power, 20);
+        assert_eq!(packet.downlink_rssi, 110);
+        assert_eq!(packet.downlink_link_quality, 80);
+        assert_eq!(packet.downlink_snr, -5);
+    }
+
+    #[test]
     fn test_link_statistics_to_bytes() {
         assert_eq!(LinkStatistics::MIN_PAYLOAD_SIZE, 10);
         let link_statistics = LinkStatistics {

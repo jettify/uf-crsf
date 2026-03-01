@@ -113,6 +113,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_gps_extended_new() {
+        let packet = GpsExtended::new(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).unwrap();
+        assert_eq!(packet.fix_type, 1);
+        assert_eq!(packet.n_speed, 2);
+        assert_eq!(packet.e_speed, 3);
+        assert_eq!(packet.v_speed, 4);
+        assert_eq!(packet.h_speed_acc, 5);
+        assert_eq!(packet.track_acc, 6);
+        assert_eq!(packet.alt_ellipsoid, 7);
+        assert_eq!(packet.h_acc, 8);
+        assert_eq!(packet.v_acc, 9);
+        assert_eq!(packet.reserved, 10);
+        assert_eq!(packet.h_dop, 11);
+        assert_eq!(packet.v_dop, 12);
+    }
+
+    #[test]
     fn test_gps_extended_to_bytes() {
         assert_eq!(GpsExtended::MIN_PAYLOAD_SIZE, 20);
         let gps_extended = GpsExtended {

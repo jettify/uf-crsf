@@ -69,6 +69,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_mavlink_sensor_new() {
+        let packet = MavLinkSensor::new(0, 1, 0x01020304, 0x05060708, 0x090A0B0C).unwrap();
+        assert_eq!(packet.dst_addr, 0);
+        assert_eq!(packet.src_addr, 1);
+        assert_eq!(packet.sensor_present, 0x01020304);
+        assert_eq!(packet.sensor_enabled, 0x05060708);
+        assert_eq!(packet.sensor_health, 0x090A0B0C);
+    }
+
+    #[test]
     fn test_mavlink_sensor_from_bytes() {
         assert_eq!(MavLinkSensor::MIN_PAYLOAD_SIZE, 14);
         let data: [u8; 14] = [

@@ -78,6 +78,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_gps_time_new() {
+        let gps_time = GpsTime::new(2024, 10, 27, 12, 34, 56, 789).unwrap();
+        assert_eq!(gps_time.year, 2024);
+        assert_eq!(gps_time.month, 10);
+        assert_eq!(gps_time.day, 27);
+        assert_eq!(gps_time.hour, 12);
+        assert_eq!(gps_time.minute, 34);
+        assert_eq!(gps_time.second, 56);
+        assert_eq!(gps_time.millisecond, 789);
+    }
+
+    #[test]
     fn test_gps_time_to_bytes() {
         assert_eq!(GpsTime::MIN_PAYLOAD_SIZE, 9);
         let gps_time = GpsTime {

@@ -68,6 +68,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_mavlink_fc_new() {
+        let packet = MavLinkFc::new(12345, 81, 123456789, 3, 1).unwrap();
+        assert_eq!(packet.airspeed, 12345);
+        assert_eq!(packet.base_mode, 81);
+        assert_eq!(packet.custom_mode, 123456789);
+        assert_eq!(packet.autopilot_type, 3);
+        assert_eq!(packet.firmware_type, 1);
+    }
+
+    #[test]
     fn test_mavlink_fc_to_bytes() {
         let mavlink_fc = MavLinkFc {
             airspeed: 12345,

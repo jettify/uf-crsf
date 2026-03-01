@@ -80,15 +80,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_esp_now_new() {
+        let esp_now = EspNow::new(10, 20, [65u8; 15], [66u8; 15], [67u8; 20]).unwrap();
+        assert_eq!(esp_now.val1, 10);
+        assert_eq!(esp_now.val2, 20);
+        assert_eq!(esp_now.val3, [65u8; 15]);
+        assert_eq!(esp_now.val4, [66u8; 15]);
+        assert_eq!(esp_now.free_text, [67u8; 20]);
+    }
+
+    #[test]
     fn test_esp_now_to_bytes() {
         assert_eq!(EspNow::MIN_PAYLOAD_SIZE, 52);
-        let esp_now = EspNow {
-            val1: 10,
-            val2: 20,
-            val3: [65u8; 15],
-            val4: [66u8; 15],
-            free_text: [67u8; 20],
-        };
+        let esp_now = EspNow::new(10, 20, [65u8; 15], [66u8; 15], [67u8; 20]).unwrap();
 
         let mut buffer = [0u8; EspNow::MIN_PAYLOAD_SIZE];
         let _ = esp_now.to_bytes(&mut buffer);

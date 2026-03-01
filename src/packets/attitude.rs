@@ -49,6 +49,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_attitude_new() {
+        let packet = Attitude::new(1, 2, 3).unwrap();
+        assert_eq!(packet.pitch, 1);
+        assert_eq!(packet.roll, 2);
+        assert_eq!(packet.yaw, 3);
+    }
+
+    #[test]
     fn test_attitude_from_bytes() {
         assert_eq!(Attitude::MIN_PAYLOAD_SIZE, 6);
         let data: [u8; 6] = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06];

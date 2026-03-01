@@ -263,4 +263,11 @@ mod tests {
         let result = DeviceInformation::from_bytes(data);
         assert!(matches!(result, Err(CrsfParsingError::InvalidPayload)));
     }
+
+    #[test]
+    fn test_device_information_new_name_too_long() {
+        let name = "x".repeat(44);
+        let result = DeviceInformation::new(0x12, 0x34, &name, 1, 2, 3, 4, 5);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }

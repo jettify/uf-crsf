@@ -69,6 +69,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_link_statistics_rx_new() {
+        let packet = LinkStatisticsRx::new(100, 75, 90, -10, 20).unwrap();
+        assert_eq!(packet.rssi_db, 100);
+        assert_eq!(packet.rssi_percent, 75);
+        assert_eq!(packet.link_quality, 90);
+        assert_eq!(packet.snr, -10);
+        assert_eq!(packet.rf_power_db, 20);
+    }
+
+    #[test]
     fn test_link_statistics_rx_to_bytes() {
         let link_statistics_rx = LinkStatisticsRx {
             rssi_db: 100,

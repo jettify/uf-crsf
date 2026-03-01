@@ -150,4 +150,11 @@ mod tests {
         let round_trip_voltages = Voltages::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(voltages, round_trip_voltages);
     }
+
+    #[test]
+    fn test_voltages_new_too_many_values() {
+        let values = [0u16; 30];
+        let result = Voltages::new(1, &values);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }

@@ -76,14 +76,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_battery_new() {
+        let battery = Battery::new(12345, -1000, 1234567, 75).unwrap();
+        assert_eq!(battery.voltage, 12345);
+        assert_eq!(battery.current, -1000);
+        assert_eq!(battery.capacity_used, 1234567);
+        assert_eq!(battery.remaining, 75);
+    }
+
+    #[test]
     fn test_battery_to_bytes() {
         assert_eq!(Battery::MIN_PAYLOAD_SIZE, 8);
-        let battery = Battery {
-            voltage: 12345,
-            current: -1000,
-            capacity_used: 1234567,
-            remaining: 75,
-        };
+        let battery = Battery::new(12345, -1000, 1234567, 75).unwrap();
 
         let mut buffer = [0u8; Battery::MIN_PAYLOAD_SIZE];
         battery.to_bytes(&mut buffer).unwrap();

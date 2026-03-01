@@ -153,4 +153,15 @@ mod tests {
         let round_trip_rpm = Rpm::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(rpm, round_trip_rpm);
     }
+
+    #[test]
+    fn test_rpm_new_invalid_len() {
+        let empty: [i32; 0] = [];
+        let result = Rpm::new(1, &empty);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+
+        let too_many = [0i32; 20];
+        let result = Rpm::new(1, &too_many);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
 }

@@ -39,11 +39,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_device_ping_new() {
+        let ping = DevicePing::new(0xEA, 0xEE).unwrap();
+        assert_eq!(ping.dst_addr, 0xEA);
+        assert_eq!(ping.src_addr, 0xEE);
+    }
+
+    #[test]
     fn test_parameter_ping_to_bytes() {
-        let ping = DevicePing {
-            dst_addr: 0xEA,
-            src_addr: 0xEE,
-        };
+        let ping = DevicePing::new(0xEA, 0xEE).unwrap();
         let mut buffer = [0u8; 2];
         let len = ping.to_bytes(&mut buffer).unwrap();
         assert_eq!(len, 2);

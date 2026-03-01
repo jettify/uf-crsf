@@ -42,6 +42,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_vario_new() {
+        let packet = VariometerSensor::new(1234).unwrap();
+        assert_eq!(packet.v_speed, 1234);
+    }
+
+    #[test]
     fn test_vario_from_bytes() {
         assert_eq!(VariometerSensor::MIN_PAYLOAD_SIZE, 2);
         let data: [u8; 2] = [0x01, 0x02];
@@ -51,7 +57,7 @@ mod tests {
 
     #[test]
     fn test_vario_to_bytes() {
-        let packet = VariometerSensor { v_speed: -1000 };
+        let packet = VariometerSensor::new(-1000).unwrap();
         let mut buffer = [0u8; 2];
         let len = packet.to_bytes(&mut buffer).unwrap();
         assert_eq!(len, 2);
