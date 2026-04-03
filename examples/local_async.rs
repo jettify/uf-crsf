@@ -1,6 +1,5 @@
 use embedded_io_adapters::tokio_1::FromTokio;
 use std::env;
-use std::io::ErrorKind;
 use std::process::exit;
 use std::time::Duration;
 

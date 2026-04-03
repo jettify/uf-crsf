@@ -4,7 +4,9 @@ use crate::parser::RawCrsfPacket;
 use crc;
 
 mod airspeed;
+mod accel_gyro;
 mod attitude;
+mod barometer;
 mod baro_altitude;
 mod battery;
 mod commands;
@@ -24,6 +26,7 @@ mod logging;
 mod mavlink_envelope;
 mod mavlink_fc;
 mod mavlink_sensor;
+mod magnetometer;
 mod rc_channels_packed;
 mod remote;
 mod rpm;
@@ -33,7 +36,9 @@ mod voltages;
 mod vtx_telemetry;
 
 pub use airspeed::AirSpeed;
+pub use accel_gyro::AccelGyro;
 pub use attitude::Attitude;
+pub use barometer::Barometer;
 pub use baro_altitude::BaroAltitude;
 pub use battery::Battery;
 pub use commands::DirectCommands;
@@ -53,6 +58,7 @@ pub use logging::Logging;
 pub use mavlink_envelope::MavlinkEnvelope;
 pub use mavlink_fc::MavLinkFc;
 pub use mavlink_sensor::MavLinkSensor;
+pub use magnetometer::Magnetometer;
 pub use rc_channels_packed::RcChannelsPacked;
 pub use remote::Remote;
 pub use rpm::Rpm;
@@ -98,6 +104,9 @@ pub enum Packet {
     Vario(VariometerSensor),
     Battery(Battery),
     AirSpeed(AirSpeed),
+    Barometer(Barometer),
+    Magnetometer(Magnetometer),
+    AccelGyro(AccelGyro),
     BaroAltitude(BaroAltitude),
     Rpm(Rpm),
     Temp(Temp),
@@ -142,6 +151,9 @@ impl Packet {
             GpsTime::PACKET_TYPE => Ok(Self::GpsTime(GpsTime::from_bytes(data)?)),
             GpsExtended::PACKET_TYPE => Ok(Self::GpsExtended(GpsExtended::from_bytes(data)?)),
             AirSpeed::PACKET_TYPE => Ok(Self::AirSpeed(AirSpeed::from_bytes(data)?)),
+            Barometer::PACKET_TYPE => Ok(Self::Barometer(Barometer::from_bytes(data)?)),
+            Magnetometer::PACKET_TYPE => Ok(Self::Magnetometer(Magnetometer::from_bytes(data)?)),
+            AccelGyro::PACKET_TYPE => Ok(Self::AccelGyro(AccelGyro::from_bytes(data)?)),
             BaroAltitude::PACKET_TYPE => Ok(Self::BaroAltitude(BaroAltitude::from_bytes(data)?)),
             Battery::PACKET_TYPE => Ok(Self::Battery(Battery::from_bytes(data)?)),
             FlightMode::PACKET_TYPE => Ok(Self::FlightMode(FlightMode::from_bytes(data)?)),
@@ -191,6 +203,9 @@ pub enum PacketType {
     Temp = 0x0D,
     Voltages = 0x0E,
     VtxTelemetry = 0x10,
+    Barometer = 0x11,
+    Magnetometer = 0x12,
+    AccelGyro = 0x13,
     Heartbeat = 0x0B,
     LinkStatistics = 0x14,
     RcChannelsPacked = 0x16,

@@ -43,6 +43,9 @@ This library provides a two-layer API:
 | Voltages | `0x0E` | 🟢 |
 | Discontinued | `0x0F` | 🟢 |
 | VTX Telemetry | `0x10` | 🟢 |
+| Barometer | `0x11` | 🟢 |
+| Magnetometer | `0x12` | 🟢 |
+| Accel Gyro | `0x13` | 🟢 |
 | Link Statistics | `0x14` | 🟢 |
 | RC Channels Packed Payload | `0x16` | 🟢 |
 | Subset RC Channels Packed | `0x17` | 🔴 |
