@@ -40,10 +40,7 @@ impl CrsfParser {
     ) -> Result<Option<RawCrsfPacket<'_>>, CrsfStreamError> {
         match self.state {
             State::AwaitingSync => {
-                if PacketAddress::try_from_primitive(byte).is_ok() {
-                    self.position = 0;
-                    self.buffer[self.position] = byte;
-                    self.state = State::AwaitingLenth;
+                if self.try_start_frame_from_sync(byte) {
                     Ok(None)
                 } else {
                     self.state = State::AwaitingSync;
@@ -56,6 +53,9 @@ impl CrsfParser {
                 if !(constants::CRSF_MIN_PACKET_SIZE..constants::CRSF_MAX_PACKET_SIZE).contains(&n)
                 {
                     self.reset();
+                    // A false sync can make this "length" byte invalid. Re-evaluate
+                    // the same byte as a new sync candidate so it is not lost.
+                    self.try_start_frame_from_sync(byte);
                     return Err(CrsfStreamError::InvalidPacketLength(byte));
                 }
                 self.position = 1;
@@ -82,6 +82,8 @@ impl CrsfParser {
 
                 if calculated_crc != packet_crc {
                     self.reset();
+                    // Preserve this byte as potential sync for the next frame.
+                    self.try_start_frame_from_sync(byte);
                     return Err(CrsfStreamError::InvalidCrc {
                         calculated_crc,
                         packet_crc,
@@ -121,6 +123,17 @@ impl CrsfParser {
     pub fn reset(&mut self) {
         self.position = 0;
         self.state = State::AwaitingSync;
+    }
+
+    fn try_start_frame_from_sync(&mut self, byte: u8) -> bool {
+        if PacketAddress::try_from_primitive(byte).is_ok() {
+            self.position = 0;
+            self.buffer[self.position] = byte;
+            self.state = State::AwaitingLenth;
+            true
+        } else {
+            false
+        }
     }
 }
 
