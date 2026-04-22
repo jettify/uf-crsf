@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/jettify/uf-crsf/compare/v0.5.0...v0.6.0) - 2026-04-22
+
+### Added
+
+- Implement gyro, baro and mag packets. ([#94](https://github.com/jettify/uf-crsf/issues/94))
+
+### Fixed
+
+- Fix unrecoverable parser desync. ([#96](https://github.com/jettify/uf-crsf/issues/96))
+
+### Other
+
+- Remove unwrap from device information packet.
+- Add test coverage for new constructor. ([#93](https://github.com/jettify/uf-crsf/issues/93))
+- Specify msrv. ([#92](https://github.com/jettify/uf-crsf/issues/92))
+- Use just commands in the github actions. ([#88](https://github.com/jettify/uf-crsf/issues/88))
+- Add blocking io example. ([#90](https://github.com/jettify/uf-crsf/issues/90))
+
 ## [0.5.0](https://github.com/jettify/uf-crsf/compare/v0.4.0...v0.5.0) - 2025-12-24
 
 ### Fixed
