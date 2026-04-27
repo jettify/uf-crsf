@@ -51,9 +51,17 @@ impl CrsfPacket for MavLinkFc {
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
         if data.len() == Self::MIN_PAYLOAD_SIZE {
             Ok(Self {
-                airspeed: i16::from_be_bytes(data[0..2].try_into().unwrap()),
+                airspeed: i16::from_be_bytes(
+                    data[0..2]
+                        .try_into()
+                        .map_err(|_e| CrsfParsingError::InvalidPayloadLength)?,
+                ),
                 base_mode: data[2],
-                custom_mode: u32::from_be_bytes(data[3..7].try_into().unwrap()),
+                custom_mode: u32::from_be_bytes(
+                    data[3..7]
+                        .try_into()
+                        .map_err(|_e| CrsfParsingError::InvalidPayloadLength)?,
+                ),
                 autopilot_type: data[7],
                 firmware_type: data[8],
             })

@@ -78,12 +78,12 @@ impl CrsfPacket for Remote {
                     update_interval: u32::from_be_bytes(
                         sub_payload[0..size_of::<u32>()]
                             .try_into()
-                            .expect("infallible due to length check"),
+                            .map_err(|_e| CrsfParsingError::InvalidPayloadLength)?,
                     ),
                     offset: i32::from_be_bytes(
                         sub_payload[size_of::<u32>()..TIMING_CORRECTION_PAYLOAD_SIZE]
                             .try_into()
-                            .expect("infallible due to length check"),
+                            .map_err(|_e| CrsfParsingError::InvalidPayloadLength)?,
                     ),
                 };
                 RemotePayload::TimingCorrection(timing_correction)
