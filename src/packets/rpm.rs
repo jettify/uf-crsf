@@ -75,16 +75,16 @@ impl CrsfPacket for Rpm {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
         let rpm_source_id = data[0];
-        let rpm_values: Vec<i32, 19> = data[1..]
-            .chunks_exact(3)
-            .map(|chunk| {
-                let mut bytes = [0; 4];
-                bytes[1..4].copy_from_slice(chunk);
-                let rpm = i32::from_be_bytes(bytes);
-                // Sign extend the 24-bit value
-                (rpm << 8) >> 8
-            })
-            .collect();
+        let mut rpm_values = Vec::new();
+        for chunk in data[1..].chunks_exact(3) {
+            let mut bytes = [0; 4];
+            bytes[1..4].copy_from_slice(chunk);
+            let rpm = i32::from_be_bytes(bytes);
+            let rpm = (rpm << 8) >> 8;
+            rpm_values
+                .push(rpm)
+                .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        }
 
         Ok(Self {
             rpm_source_id,
@@ -162,6 +162,13 @@ mod tests {
 
         let too_many = [0i32; 20];
         let result = Rpm::new(1, &too_many);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
+
+    #[test]
+    fn test_rpm_from_bytes_too_many_values() {
+        let data = [0u8; 61];
+        let result = Rpm::from_bytes(&data);
         assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
     }
 }

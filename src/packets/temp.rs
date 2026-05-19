@@ -77,13 +77,14 @@ impl CrsfPacket for Temp {
         }
 
         let temp_source_id = data[0];
-        let temperatures: Vec<i16, 20> = data[1..]
-            .chunks_exact(2)
-            .map(|chunk| {
-                let bytes = [chunk[0], chunk[1]];
-                i16::from_be_bytes(bytes)
-            })
-            .collect();
+        let mut temperatures = Vec::new();
+        for chunk in data[1..].chunks_exact(2) {
+            let bytes = [chunk[0], chunk[1]];
+            let temperature = i16::from_be_bytes(bytes);
+            temperatures
+                .push(temperature)
+                .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        }
 
         Ok(Self {
             temp_source_id,
@@ -157,6 +158,14 @@ mod tests {
     fn test_temp_new_too_many_values() {
         let values = [0i16; 21];
         let result = Temp::new(1, &values);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
+
+    #[test]
+    fn test_temp_from_bytes_too_many_values() {
+        let mut data = [0u8; 43];
+        data[0] = 1;
+        let result = Temp::from_bytes(&data);
         assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
     }
 }

@@ -75,13 +75,14 @@ impl CrsfPacket for Voltages {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
         let voltage_source_id = data[0];
-        let voltage_values: Vec<u16, 29> = data[1..]
-            .chunks_exact(2)
-            .map(|chunk| {
-                let bytes = [chunk[0], chunk[1]];
-                u16::from_be_bytes(bytes)
-            })
-            .collect();
+        let mut voltage_values = Vec::new();
+        for chunk in data[1..].chunks_exact(2) {
+            let bytes = [chunk[0], chunk[1]];
+            let voltage = u16::from_be_bytes(bytes);
+            voltage_values
+                .push(voltage)
+                .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
+        }
 
         Ok(Self {
             voltage_source_id,
@@ -155,6 +156,13 @@ mod tests {
     fn test_voltages_new_too_many_values() {
         let values = [0u16; 30];
         let result = Voltages::new(1, &values);
+        assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
+    }
+
+    #[test]
+    fn test_voltages_from_bytes_too_many_values() {
+        let data = [0u8; 61];
+        let result = Voltages::from_bytes(&data);
         assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
     }
 }
