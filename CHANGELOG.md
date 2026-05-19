@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/jettify/uf-crsf/compare/v0.6.0...v0.6.1) - 2026-05-19
+
+### Fixed
+
+- Fix panic for rpm, temp and voltagess in case too many values.
+- Fix paning in device ping packet.
+
+### Other
+
+- Remove more unwrap usaage. ([#98](https://github.com/jettify/uf-crsf/issues/98))
+- Avoid using unwrap in gps packets.
+
 ## [0.6.0](https://github.com/jettify/uf-crsf/compare/v0.5.0...v0.6.0) - 2026-04-22
 
 ### Added
