@@ -1021,7 +1021,7 @@ dependencies = [
 
 [[package]]
 name = "uf-crsf"
-version = "0.3.0"
+version = "0.6.0"
 dependencies = [
  "crc",
  "defmt 1.0.1",

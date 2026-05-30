@@ -77,6 +77,7 @@ This library provides a two-layer API:
 
 ## Note
 
+Originally developed for the `uflight` flight-controller project, but useful as a standalone crate.
 Library is under active development and testing, API might change at any time.
 
 ## Installation
