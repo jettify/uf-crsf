@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2](https://github.com/jettify/uf-crsf/compare/v0.6.1...v0.6.2) - 2026-09-10
+
+### Other
+
+- Adress cargo audit warnings.
+- Update dependencies.
+
 ## [0.6.1](https://github.com/jettify/uf-crsf/compare/v0.6.0...v0.6.1) - 2026-05-19
 
 ### Fixed
