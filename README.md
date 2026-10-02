@@ -35,7 +35,7 @@ This library provides a two-layer API:
 | GPS Time | `0x03` | 🟢 |
 | GPS Extended | `0x06` | 🟢 |
 | Variometer Sensor | `0x07` | 🟢 |
-| Battery Sensor | `0x08` | 🟡 (8-byte payload only; optional sensor ID unsupported) |
+| Battery Sensor | `0x08` | 🟢 (optional sensor ID supported) |
 | Barometric Altitude & Vertical Speed | `0x09` | 🟢 |
 | Airspeed | `0x0A` | 🟢 |
 | Heartbeat | `0x0B` | 🟢 |

@@ -1,10 +1,36 @@
 #![cfg(test)]
 extern crate std;
 
-use uf_crsf::packets::{LinkStatistics, Packet, PacketAddress};
+use uf_crsf::packets::{Battery, LinkStatistics, Packet, PacketAddress};
 use uf_crsf::parser::CrsfParser;
 use uf_crsf::write_packet_to_buffer;
 use uf_crsf::CrsfStreamError;
+
+#[test]
+fn test_battery_wire_layouts() {
+    // Independent wire fixtures: 12 V, 1.5 A, 1,234,567 mAh, 75% remaining.
+    let frames: [&[u8]; 3] = [
+        &[0xc8, 10, 8, 0, 120, 0, 15, 0x12, 0xd6, 0x87, 75, 0x2b],
+        &[0xc8, 11, 8, 0, 120, 0, 15, 0x12, 0xd6, 0x87, 75, 42, 0xd5],
+        &[
+            0xc8, 13, 8, 0, 120, 0, 15, 0x12, 0xd6, 0x87, 75, 42, 0xab, 0xcd, 0xa8,
+        ],
+    ];
+    for (index, frame) in frames.iter().enumerate() {
+        let mut expected = Battery::new(120, 15, 1234567, 75).unwrap();
+        expected.id = if index == 0 { 0 } else { 42 };
+        let mut parser = CrsfParser::new();
+        let mut packets = parser.iter_packets(frame);
+        assert_eq!(packets.next(), Some(Ok(Packet::Battery(expected.clone()))));
+        assert_eq!(packets.next(), None);
+
+        let mut buffer = [0u8; 64];
+        let len = write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &expected)
+            .unwrap();
+        // Unknown extension fields are ignored rather than reproduced.
+        assert_eq!(&buffer[..len], frames[usize::from(index != 0)]);
+    }
+}
 
 fn build_link_statistics_packet() -> ([u8; 64], usize) {
     let packet = LinkStatistics {
