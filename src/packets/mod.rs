@@ -20,6 +20,7 @@ mod gps_extended;
 mod gps_time;
 mod heartbeat;
 mod link_statistics;
+mod link_statistics_repeater;
 mod link_statistics_rx;
 mod link_statistics_tx;
 mod logging;
@@ -52,6 +53,7 @@ pub use gps_extended::GpsExtended;
 pub use gps_time::GpsTime;
 pub use heartbeat::Heartbeat;
 pub use link_statistics::LinkStatistics;
+pub use link_statistics_repeater::LinkStatisticsRepeater;
 pub use link_statistics_rx::LinkStatisticsRx;
 pub use link_statistics_tx::LinkStatisticsTx;
 pub use logging::Logging;
@@ -95,6 +97,7 @@ pub trait CrsfPacket: Sized {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Packet {
     LinkStatistics(LinkStatistics),
+    LinkStatisticsRepeater(LinkStatisticsRepeater),
     LinkStatisticsRx(LinkStatisticsRx),
     LinkStatisticsTx(LinkStatisticsTx),
     RCChannels(RcChannelsPacked),
@@ -138,6 +141,9 @@ impl Packet {
             LinkStatistics::PACKET_TYPE => {
                 Ok(Self::LinkStatistics(LinkStatistics::from_bytes(data)?))
             }
+            LinkStatisticsRepeater::PACKET_TYPE => Ok(Self::LinkStatisticsRepeater(
+                LinkStatisticsRepeater::from_bytes(data)?,
+            )),
             LinkStatisticsTx::PACKET_TYPE => {
                 Ok(Self::LinkStatisticsTx(LinkStatisticsTx::from_bytes(data)?))
             }
@@ -208,6 +214,7 @@ pub enum PacketType {
     AccelGyro = 0x13,
     Heartbeat = 0x0B,
     LinkStatistics = 0x14,
+    LinkStatisticsRepeater = 0x15,
     RcChannelsPacked = 0x16,
     SubsetRcChannelsPacked = 0x17,
     LinkStatisticsRx = 0x1C,

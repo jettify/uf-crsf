@@ -48,7 +48,7 @@ This library provides a two-layer API:
 | Magnetometer | `0x12` | 🟢 |
 | Accel Gyro | `0x13` | 🟢 |
 | Link Statistics | `0x14` | 🟢 |
-| Link Statistics Repeater | `0x15` | 🔴 |
+| Link Statistics Repeater | `0x15` | 🟢 |
 | RC Channels Packed Payload | `0x16` | 🟢 |
 | Subset RC Channels Packed | `0x17` | 🔴 |
 | RC Channels Packed 11-bits (Unused) | `0x18` | 🔴 |

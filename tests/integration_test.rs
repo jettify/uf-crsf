@@ -2,11 +2,44 @@
 extern crate std;
 
 use uf_crsf::packets::{
-    Battery, LinkStatistics, LinkStatisticsRx, LinkStatisticsTx, Packet, PacketAddress,
+    Battery, LinkStatistics, LinkStatisticsRepeater, LinkStatisticsRx, LinkStatisticsTx, Packet,
+    PacketAddress, PacketType,
 };
 use uf_crsf::parser::CrsfParser;
 use uf_crsf::write_packet_to_buffer;
 use uf_crsf::CrsfStreamError;
+
+#[test]
+fn test_link_statistics_repeater_wire_layout() {
+    // Independent 0x15 wire fixture with negative SNRs and CRC-8/DVB-S2.
+    let frame = [
+        0xc8, 12, 0x15, 100, 75, 90, 246, 1, 2, 8, 110, 80, 251, 0xba,
+    ];
+    let packet = LinkStatisticsRepeater::new(100, 75, 90, -10, 1, 2, 8, 110, 80, -5).unwrap();
+    assert_eq!(
+        PacketType::try_from(0x15),
+        Ok(PacketType::LinkStatisticsRepeater)
+    );
+    assert!(!PacketType::LinkStatisticsRepeater.is_extended());
+
+    let mut buffer = [0xaa; 64];
+    let len =
+        write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
+    assert_eq!(len, frame.len());
+    assert_eq!(&buffer[..len], &frame);
+    assert_eq!(buffer[len], 0xaa);
+
+    // Check streaming parsing across every possible chunk boundary.
+    for split in 0..=frame.len() {
+        let mut parser = CrsfParser::new();
+        let mut packets: Vec<_> = parser.iter_packets(&frame[..split]).collect();
+        packets.extend(parser.iter_packets(&frame[split..]));
+        assert_eq!(
+            packets,
+            vec![Ok(Packet::LinkStatisticsRepeater(packet.clone()))]
+        );
+    }
+}
 
 #[test]
 fn test_link_statistics_rx_tx_wire_layouts() {
