@@ -52,8 +52,8 @@ This library provides a two-layer API:
 | RC Channels Packed Payload | `0x16` | 🟢 |
 | Subset RC Channels Packed | `0x17` | 🔴 |
 | RC Channels Packed 11-bits (Unused) | `0x18` | 🔴 |
-| Link Statistics RX | `0x1C` | 🟡 (legacy 5-byte payload only) |
-| Link Statistics TX | `0x1D` | 🟡 (legacy 6-byte payload only) |
+| Link Statistics RX | `0x1C` | 🟢 (legacy 5-byte and extended 7-byte payloads) |
+| Link Statistics TX | `0x1D` | 🟢 (legacy 6-byte and extended 8-byte payloads) |
 | Attitude | `0x1E` | 🟢 |
 | MAVLink FC | `0x1F` | 🟢 |
 | Flight Mode | `0x21` | 🟢 |
