@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/jettify/uf-crsf/compare/v0.6.1...v0.7.0) - 2026-10-03
+
+### Added
+
+- Addd LinkStatisticsRepeater packet ([#102](https://github.com/jettify/uf-crsf/issues/102))
+- Update link statistics packets to new format. ([#101](https://github.com/jettify/uf-crsf/issues/101))
+- Add optional sernsor id support for battery packet. ([#100](https://github.com/jettify/uf-crsf/issues/100))
+
+### Other
+
+- Update implementation status in README
+- Adress cargo audit warnings.
+- Update dependencies.
+
 ## [0.6.1](https://github.com/jettify/uf-crsf/compare/v0.6.0...v0.6.1) - 2026-05-19
 
 ### Fixed
