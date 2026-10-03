@@ -1,10 +1,51 @@
 #![cfg(test)]
 extern crate std;
 
-use uf_crsf::packets::{Battery, LinkStatistics, Packet, PacketAddress};
+use uf_crsf::packets::{
+    Battery, LinkStatistics, LinkStatisticsRx, LinkStatisticsTx, Packet, PacketAddress,
+};
 use uf_crsf::parser::CrsfParser;
 use uf_crsf::write_packet_to_buffer;
 use uf_crsf::CrsfStreamError;
+
+#[test]
+fn test_link_statistics_rx_tx_wire_layouts() {
+    // Independent fixtures for legacy and extended 0x1C/0x1D frames, including CRC.
+    let frames: [&[u8]; 4] = [
+        &[0xc8, 7, 0x1c, 100, 75, 90, 246, 20, 0x5f],
+        &[0xc8, 9, 0x1c, 100, 75, 90, 246, 20, 110, 1, 0xdb],
+        &[0xc8, 8, 0x1d, 100, 75, 90, 246, 20, 50, 0xaf],
+        &[0xc8, 10, 0x1d, 100, 75, 90, 246, 20, 50, 110, 1, 0xca],
+    ];
+    for (index, frame) in frames.iter().enumerate() {
+        let extended = index % 2 != 0;
+        let mut buffer = [0u8; 64];
+        let (expected, len) = if index < 2 {
+            let mut packet = LinkStatisticsRx::new(100, 75, 90, -10, 20).unwrap();
+            if extended {
+                packet.rssi_ant2_db = Some(110);
+                packet.active_antenna = Some(1);
+            }
+            let len = write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet)
+                .unwrap();
+            (Packet::LinkStatisticsRx(packet), len)
+        } else {
+            let mut packet = LinkStatisticsTx::new(100, 75, 90, -10, 20, 50).unwrap();
+            if extended {
+                packet.rssi_ant2_db = Some(110);
+                packet.active_antenna = Some(1);
+            }
+            let len = write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet)
+                .unwrap();
+            (Packet::LinkStatisticsTx(packet), len)
+        };
+        assert_eq!(&buffer[..len], *frame);
+        let mut parser = CrsfParser::new();
+        let mut packets = parser.iter_packets(frame);
+        assert_eq!(packets.next(), Some(Ok(expected)));
+        assert_eq!(packets.next(), None);
+    }
+}
 
 #[test]
 fn test_battery_wire_layouts() {
