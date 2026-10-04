@@ -10,6 +10,40 @@ use uf_crsf::write_packet_to_buffer;
 use uf_crsf::CrsfStreamError;
 
 #[test]
+fn test_logging_short_header_wire_layout() {
+    use uf_crsf::packets::Logging;
+
+    // Short-header fixture with one parameter and CRC-8/DVB-S2.
+    let frame = [
+        0xc8, 12, 0x34, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0x11, 0x22, 0x33, 0x44, 0x64,
+    ];
+    let packet = Logging::new(0x1234, 0x56789abc, &[0x11223344]).unwrap();
+    assert!(!PacketType::Logging.is_extended());
+    let mut buffer = [0xaa; 64];
+    let len =
+        write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
+    assert_eq!(&buffer[..len], &frame);
+    assert_eq!(buffer[len], 0xaa);
+
+    for split in 0..=frame.len() {
+        let mut parser = CrsfParser::new();
+        let mut packets: Vec<_> = parser.iter_packets(&frame[..split]).collect();
+        packets.extend(parser.iter_packets(&frame[split..]));
+        assert_eq!(packets, vec![Ok(Packet::Logging(packet.clone()))]);
+    }
+
+    let packet = Logging::new(0x1234, 0x56789abc, &[0x11223344; 13]).unwrap();
+    let len =
+        write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
+    assert_eq!(len, 62);
+    assert_eq!(buffer[1], 60);
+    assert_eq!(
+        CrsfParser::new().iter_packets(&buffer[..len]).next(),
+        Some(Ok(Packet::Logging(packet)))
+    );
+}
+
+#[test]
 fn test_link_statistics_repeater_wire_layout() {
     // Independent 0x15 wire fixture with negative SNRs and CRC-8/DVB-S2.
     let frame = [

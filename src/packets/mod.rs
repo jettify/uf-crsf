@@ -245,7 +245,7 @@ pub enum PacketType {
 
 impl PacketType {
     pub fn is_extended(self) -> bool {
-        self as u8 >= 0x28
+        self as u8 >= 0x28 && self != Self::Logging
     }
 }
 
