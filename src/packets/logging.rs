@@ -4,10 +4,9 @@ use core::mem::size_of;
 use heapless::Vec;
 
 /// Represents a Logging packet (frame type 0x34).
+/// Uses a short header: the payload contains no destination or origin address.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Logging {
-    pub dst_addr: u8,
-    pub src_addr: u8,
     pub logtype: u16,
     pub timestamp: u32,
     params: Vec<u32, 13>,
@@ -15,13 +14,7 @@ pub struct Logging {
 
 impl Logging {
     /// Creates a new Logging packet.
-    pub fn new(
-        dst_addr: u8,
-        src_addr: u8,
-        logtype: u16,
-        timestamp: u32,
-        params: &[u32],
-    ) -> Result<Self, CrsfParsingError> {
+    pub fn new(logtype: u16, timestamp: u32, params: &[u32]) -> Result<Self, CrsfParsingError> {
         if params.len() > 13 {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
@@ -29,8 +22,6 @@ impl Logging {
         p.extend_from_slice(params)
             .map_err(|_| CrsfParsingError::InvalidPayloadLength)?;
         Ok(Self {
-            dst_addr,
-            src_addr,
             logtype,
             timestamp,
             params: p,
@@ -48,9 +39,7 @@ impl defmt::Format for Logging {
     fn format(&self, fmt: defmt::Formatter) {
         defmt::write!(
             fmt,
-            "Logging {{ dst_addr: {}, src_addr: {}, logtype: {}, timestamp: {}, params: {} }}",
-            self.dst_addr,
-            self.src_addr,
+            "Logging {{ logtype: {}, timestamp: {}, params: {} }}",
             self.logtype,
             self.timestamp,
             self.params(),
@@ -60,24 +49,20 @@ impl defmt::Format for Logging {
 
 impl CrsfPacket for Logging {
     const PACKET_TYPE: PacketType = PacketType::Logging;
-    const MIN_PAYLOAD_SIZE: usize = size_of::<u8>() * 2 + size_of::<u16>() + size_of::<u32>();
+    const MIN_PAYLOAD_SIZE: usize = size_of::<u16>() + size_of::<u32>();
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
         if data.len() < Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
-        if !(data.len() - Self::MIN_PAYLOAD_SIZE).is_multiple_of(size_of::<u32>()) {
-            return Err(CrsfParsingError::InvalidPayloadLength);
-        }
-
-        let dst_addr = data[0];
-        let src_addr = data[1];
-        let logtype = u16::from_be_bytes(data[2..4].try_into().expect("infallible"));
-        let timestamp = u32::from_be_bytes(data[4..8].try_into().expect("infallible"));
+        let logtype = u16::from_be_bytes(data[0..2].try_into().expect("infallible"));
+        let timestamp = u32::from_be_bytes(data[2..6].try_into().expect("infallible"));
 
         let mut params = Vec::new();
-        for chunk in data[8..].chunks_exact(4) {
+        // There is no parameter count. Read complete u32 parameters and ignore
+        // trailing bytes, as required by the protocol's extension rule.
+        for chunk in data[Self::MIN_PAYLOAD_SIZE..].chunks_exact(4) {
             let param = u32::from_be_bytes(chunk.try_into().expect("infallible"));
             if params.push(param).is_err() {
                 // This would mean we have more params than our Vec can hold.
@@ -86,8 +71,6 @@ impl CrsfPacket for Logging {
         }
 
         Ok(Self {
-            dst_addr,
-            src_addr,
             logtype,
             timestamp,
             params,
@@ -101,10 +84,8 @@ impl CrsfPacket for Logging {
             return Err(CrsfParsingError::BufferOverflow);
         }
 
-        buffer[0] = self.dst_addr;
-        buffer[1] = self.src_addr;
-        buffer[2..4].copy_from_slice(&self.logtype.to_be_bytes());
-        buffer[4..8].copy_from_slice(&self.timestamp.to_be_bytes());
+        buffer[0..2].copy_from_slice(&self.logtype.to_be_bytes());
+        buffer[2..6].copy_from_slice(&self.timestamp.to_be_bytes());
 
         for (i, param) in self.params().iter().enumerate() {
             let offset = Self::MIN_PAYLOAD_SIZE + i * size_of::<u32>();
@@ -121,15 +102,12 @@ mod tests {
 
     #[test]
     fn test_logging_from_bytes_no_params() {
-        assert_eq!(Logging::MIN_PAYLOAD_SIZE, 8);
-        let data: [u8; 8] = [
-            0xEA, 0xEE, // dst_addr, src_addr
+        assert_eq!(Logging::MIN_PAYLOAD_SIZE, 6);
+        let data: [u8; 6] = [
             0x01, 0x02, // logtype
             0x03, 0x04, 0x05, 0x06, // timestamp
         ];
         let packet = Logging::from_bytes(&data).unwrap();
-        assert_eq!(packet.dst_addr, 0xEA);
-        assert_eq!(packet.src_addr, 0xEE);
         assert_eq!(packet.logtype, 0x0102);
         assert_eq!(packet.timestamp, 0x03040506);
         assert!(packet.params().is_empty());
@@ -137,16 +115,13 @@ mod tests {
 
     #[test]
     fn test_logging_from_bytes_with_params() {
-        let data: [u8; 16] = [
-            0xEA, 0xEE, // dst_addr, src_addr
+        let data: [u8; 14] = [
             0x01, 0x02, // logtype
             0x03, 0x04, 0x05, 0x06, // timestamp
             0x07, 0x08, 0x09, 0x0A, // param1
             0x0B, 0x0C, 0x0D, 0x0E, // param2
         ];
         let packet = Logging::from_bytes(&data).unwrap();
-        assert_eq!(packet.dst_addr, 0xEA);
-        assert_eq!(packet.src_addr, 0xEE);
         assert_eq!(packet.logtype, 0x0102);
         assert_eq!(packet.timestamp, 0x03040506);
         assert_eq!(packet.params(), &[0x0708090A, 0x0B0C0D0E]);
@@ -154,23 +129,22 @@ mod tests {
 
     #[test]
     fn test_logging_to_bytes_no_params() {
-        let packet = Logging::new(0xEA, 0xEE, 0x1234, 0x56789ABC, &[]).unwrap();
-        let mut buffer = [0u8; 8];
+        let packet = Logging::new(0x1234, 0x56789ABC, &[]).unwrap();
+        let mut buffer = [0u8; 6];
         let len = packet.to_bytes(&mut buffer).unwrap();
-        assert_eq!(len, 8);
-        let expected: [u8; 8] = [0xEA, 0xEE, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC];
+        assert_eq!(len, 6);
+        let expected: [u8; 6] = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC];
         assert_eq!(buffer, expected);
     }
 
     #[test]
     fn test_logging_to_bytes_with_params() {
         let params = [0x11223344, 0x55667788];
-        let packet = Logging::new(0xEA, 0xEE, 0xABCD, 0xDEADBEEF, &params).unwrap();
-        let mut buffer = [0u8; 16];
+        let packet = Logging::new(0xABCD, 0xDEADBEEF, &params).unwrap();
+        let mut buffer = [0u8; 14];
         let len = packet.to_bytes(&mut buffer).unwrap();
-        assert_eq!(len, 16);
-        let expected: [u8; 16] = [
-            0xEA, 0xEE, // dst_addr, src_addr
+        assert_eq!(len, 14);
+        let expected: [u8; 14] = [
             0xAB, 0xCD, // logtype
             0xDE, 0xAD, 0xBE, 0xEF, // timestamp
             0x11, 0x22, 0x33, 0x44, // param1
@@ -182,17 +156,17 @@ mod tests {
     #[test]
     fn test_logging_round_trip() {
         let params = [1, 2, 3];
-        let packet = Logging::new(0xEA, 0xEE, 123, 456, &params).unwrap();
-        let mut buffer = [0u8; 20];
+        let packet = Logging::new(123, 456, &params).unwrap();
+        let mut buffer = [0u8; 18];
         let len = packet.to_bytes(&mut buffer).unwrap();
-        assert_eq!(len, 20);
+        assert_eq!(len, 18);
         let round_trip = Logging::from_bytes(&buffer[..len]).unwrap();
         assert_eq!(packet, round_trip);
     }
 
     #[test]
     fn test_invalid_payload_length_too_short() {
-        let data = [0u8; 7];
+        let data = [0u8; 5];
         assert_eq!(
             Logging::from_bytes(&data),
             Err(CrsfParsingError::InvalidPayloadLength)
@@ -200,18 +174,49 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_payload_length_not_multiple_of_4() {
-        let data = [0u8; 9];
+    fn test_logging_ignores_trailing_bytes() {
+        let data = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x11, 0x22, 0x33, 0x44, 0xAA, 0xBB, 0xCC,
+        ];
+        for trailing in 1..=3 {
+            let packet = Logging::from_bytes(&data[..10 + trailing]).unwrap();
+            assert_eq!(packet.logtype, 0x0102);
+            assert_eq!(packet.timestamp, 0x03040506);
+            assert_eq!(packet.params(), &[0x11223344]);
+        }
+    }
+
+    #[test]
+    fn test_logging_max_params() {
+        let packet = Logging::new(0x1234, 0x56789ABC, &[0x11223344; 13]).unwrap();
+        let mut buffer = [0u8; 58];
+        assert_eq!(packet.to_bytes(&mut buffer), Ok(58));
+        assert_eq!(Logging::from_bytes(&buffer), Ok(packet));
+    }
+
+    #[test]
+    fn test_logging_from_bytes_too_many_params() {
         assert_eq!(
-            Logging::from_bytes(&data),
+            Logging::from_bytes(&[0u8; 62]),
             Err(CrsfParsingError::InvalidPayloadLength)
         );
+    }
+
+    #[test]
+    fn test_logging_to_bytes_buffer_too_small() {
+        let packet = Logging::new(1, 2, &[3]).unwrap();
+        let mut buffer = [0xAA; 9];
+        assert_eq!(
+            packet.to_bytes(&mut buffer),
+            Err(CrsfParsingError::BufferOverflow)
+        );
+        assert_eq!(buffer, [0xAA; 9]);
     }
 
     #[test]
     fn test_logging_new_too_many_params() {
         let params = [0u32; 14];
-        let result = Logging::new(0xEA, 0xEE, 123, 456, &params);
+        let result = Logging::new(123, 456, &params);
         assert_eq!(result, Err(CrsfParsingError::InvalidPayloadLength));
     }
 }

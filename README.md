@@ -58,7 +58,7 @@ This library provides a two-layer API:
 | MAVLink FC | `0x1F` | 🟢 |
 | Flight Mode | `0x21` | 🟢 |
 | ESP_NOW Messages | `0x22` | 🟢 |
-| Logging | `0x34` | 🟡 (incorrectly includes destination/origin bytes) |
+| Logging | `0x34` | 🟢 |
 | ArduPilot Reserved Passthrough Frame | `0x80` | 🔴 |
 | mLRS Reserved | `0x81, 0x82` | 🔴 |
 | CRSF MAVLink Envelope | `0xAA` | 🟢 (chunk codec; reassembly is caller-managed) |
