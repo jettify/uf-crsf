@@ -59,7 +59,7 @@ This library provides a two-layer API:
 | Flight Mode | `0x21` | 🟢 |
 | ESP_NOW Messages | `0x22` | 🟢 |
 | Logging | `0x34` | 🟢 |
-| ArduPilot Reserved Passthrough Frame | `0x80` | 🔴 |
+| ArduPilot Reserved Passthrough Frame | `0x80` | 🟢 (single, multi-packet, and status text) |
 | mLRS Reserved | `0x81, 0x82` | 🔴 |
 | CRSF MAVLink Envelope | `0xAA` | 🟢 (chunk codec; reassembly is caller-managed) |
 | **Extended Frames** | | |
@@ -78,7 +78,7 @@ This library provides a two-layer API:
 | Crossfire Reserved | `0x19 - 0x1B` | 🔴 |
 | Reserved | `0x27, 0x36, 0x38, 0x3E, 0x40` | 🔴 |
 | KISSFC Reserved | `0x78 - 0x79` | 🔴 |
-| ArduPilot Legacy Reserved | `0x7F` | 🔴 |
+| ArduPilot Legacy Reserved | `0x7F` | 🟢 (same payloads as `0x80`) |
 | Rotorflight Telemetry Envelope | `0x88` | 🔴 |
 
 ## Note

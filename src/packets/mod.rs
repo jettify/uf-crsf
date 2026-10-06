@@ -5,6 +5,7 @@ use crc;
 
 mod accel_gyro;
 mod airspeed;
+mod ardupilot;
 mod attitude;
 mod baro_altitude;
 mod barometer;
@@ -38,6 +39,9 @@ mod vtx_telemetry;
 
 pub use accel_gyro::AccelGyro;
 pub use airspeed::AirSpeed;
+pub use ardupilot::{
+    ArduPilotLegacy, ArduPilotPassthrough, PassthroughStatusText, PassthroughTelemetryPacket,
+};
 pub use attitude::Attitude;
 pub use baro_altitude::BaroAltitude;
 pub use barometer::Barometer;
@@ -96,6 +100,8 @@ pub trait CrsfPacket: Sized {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Packet {
+    ArduPilotPassthrough(ArduPilotPassthrough),
+    ArduPilotLegacy(ArduPilotLegacy),
     LinkStatistics(LinkStatistics),
     LinkStatisticsRepeater(LinkStatisticsRepeater),
     LinkStatisticsRx(LinkStatisticsRx),
@@ -138,6 +144,12 @@ impl Packet {
 
         let data = raw_packet.payload();
         match packet_type {
+            ArduPilotPassthrough::PACKET_TYPE => Ok(Self::ArduPilotPassthrough(
+                ArduPilotPassthrough::from_bytes(data)?,
+            )),
+            ArduPilotLegacy::PACKET_TYPE => {
+                Ok(Self::ArduPilotLegacy(ArduPilotLegacy::from_bytes(data)?))
+            }
             LinkStatistics::PACKET_TYPE => {
                 Ok(Self::LinkStatistics(LinkStatistics::from_bytes(data)?))
             }
@@ -237,6 +249,7 @@ pub enum PacketType {
     MspRequest = 0x7A,
     MspResponse = 0x7B,
     MspWrite = 0x7C,
+    ArdupilotLegacy = 0x7F,
     ArdupilotResponse = 0x80,
     MavlinkEnvelope = 0xAA,
     MavLinkSensor = 0xAC,
@@ -245,7 +258,11 @@ pub enum PacketType {
 
 impl PacketType {
     pub fn is_extended(self) -> bool {
-        self as u8 >= 0x28 && self != Self::Logging
+        self as u8 >= 0x28
+            && !matches!(
+                self,
+                Self::Logging | Self::ArdupilotLegacy | Self::ArdupilotResponse
+            )
     }
 }
 
