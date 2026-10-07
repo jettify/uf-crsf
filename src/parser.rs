@@ -50,7 +50,7 @@ impl CrsfParser {
             State::AwaitingLenth => {
                 let n = byte as usize + 2;
 
-                if !(constants::CRSF_MIN_PACKET_SIZE..constants::CRSF_MAX_PACKET_SIZE).contains(&n)
+                if !(constants::CRSF_MIN_PACKET_SIZE..=constants::CRSF_MAX_PACKET_SIZE).contains(&n)
                 {
                     self.reset();
                     // A false sync can make this "length" byte invalid. Re-evaluate

@@ -61,7 +61,7 @@ This library provides a two-layer API:
 | Logging | `0x34` | 🟢 |
 | ArduPilot Reserved Passthrough Frame | `0x80` | 🟢 (single, multi-packet, and status text) |
 | mLRS Reserved | `0x81, 0x82` | 🔴 |
-| CRSF MAVLink Envelope | `0xAA` | 🟢 (chunk codec; reassembly is caller-managed) |
+| CRSF MAVLink Envelope | `0xAA` | 🟢 |
 | **Extended Frames** | | |
 | Parameter Ping Devices | `0x28` | 🟢 |
 | Parameter Device Information | `0x29` | 🟢 |

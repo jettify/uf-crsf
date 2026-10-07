@@ -10,6 +10,85 @@ use uf_crsf::write_packet_to_buffer;
 use uf_crsf::CrsfStreamError;
 
 #[test]
+fn test_mavlink_envelope_wire_layouts() {
+    use uf_crsf::packets::MavlinkEnvelope;
+
+    // Independent short-header fixtures, including CRC-8/DVB-S2.
+    let frames = [
+        [0xc8, 6, 0xaa, 0x00, 2, 0xfe, 0xfd, 0x5b],
+        [0xc8, 6, 0xaa, 0x20, 2, 0xfe, 0xfd, 0xd2],
+        [0xc8, 6, 0xaa, 0x21, 2, 0xfe, 0xfd, 0x97],
+        [0xc8, 6, 0xaa, 0x22, 2, 0xfe, 0xfd, 0x58],
+    ];
+    for frame in frames {
+        let packet = MavlinkEnvelope::new(frame[3] >> 4, frame[3] & 0x0f, &[0xfe, 0xfd]).unwrap();
+        let mut buffer = [0; 64];
+        let len =
+            write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
+        assert_eq!(&buffer[..len], &frame);
+        assert_eq!(
+            CrsfParser::new().iter_packets(&frame).collect::<Vec<_>>(),
+            vec![Ok(Packet::MavlinkEnvelope(packet))]
+        );
+    }
+    // Valid frame CRC, but current chunk 1 exceeds last chunk 0.
+    let invalid = [0xc8, 4, 0xaa, 1, 0, 0xc4];
+    assert_eq!(
+        CrsfParser::new().iter_packets(&invalid).next(),
+        Some(Err(CrsfStreamError::ParsingError(
+            uf_crsf::CrsfParsingError::InvalidPayload
+        )))
+    );
+}
+
+#[test]
+fn test_maximum_mavlink_envelope_frame() {
+    use uf_crsf::packets::MavlinkEnvelope;
+
+    let mut frame = [0xab; 64];
+    frame[..5].copy_from_slice(&[0xc8, 62, 0xaa, 0, 58]);
+    frame[63] = 0xb4; // Independent CRC-8/DVB-S2 fixture.
+    let packet = MavlinkEnvelope::new(0, 0, &[0xab; 58]).unwrap();
+    let mut buffer = [0; 64];
+    assert_eq!(
+        write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet),
+        Ok(64)
+    );
+    assert_eq!(buffer, frame);
+
+    let mut parser = CrsfParser::new();
+    for &byte in &frame[..63] {
+        assert_eq!(parser.push_byte_raw(byte), Ok(None));
+    }
+    let raw = parser.push_byte_raw(frame[63]).unwrap().unwrap();
+    assert_eq!(raw.len(), 64);
+    assert_eq!(raw.raw_packet_type(), 0xaa);
+    assert_eq!(raw.payload(), &frame[3..63]);
+    assert_eq!(
+        Packet::parse(&raw),
+        Ok(Packet::MavlinkEnvelope(packet.clone()))
+    );
+
+    for split in 0..=frame.len() {
+        let mut parser = CrsfParser::new();
+        let mut packets: Vec<_> = parser.iter_packets(&frame[..split]).collect();
+        packets.extend(parser.iter_packets(&frame[split..]));
+        assert_eq!(packets, vec![Ok(Packet::MavlinkEnvelope(packet.clone()))]);
+    }
+
+    let mut parser = CrsfParser::new();
+    assert_eq!(parser.push_byte_raw(0xc8), Ok(None));
+    assert_eq!(
+        parser.push_byte_raw(63),
+        Err(CrsfStreamError::InvalidPacketLength(63))
+    );
+    assert_eq!(
+        parser.iter_packets(&frame).next(),
+        Some(Ok(Packet::MavlinkEnvelope(packet)))
+    );
+}
+
+#[test]
 fn test_logging_short_header_wire_layout() {
     use uf_crsf::packets::Logging;
 

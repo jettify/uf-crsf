@@ -10,11 +10,13 @@ use heapless::Vec;
 /// broken up into chunks.
 /// Uses a short header: chunk info and data size immediately follow the type,
 /// without destination or origin bytes.
+/// Chunk indexing and reassembly are managed by the caller.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MavlinkEnvelope {
-    /// Total number of chunks for the `MAVLink` frame.
+    /// Zero-based index of the last chunk (0..=15).
+    /// A single-chunk frame uses `total_chunks = 0` and `current_chunk = 0`.
     pub total_chunks: u8,
-    /// The index of the current chunk (0-based).
+    /// Zero-based index of the current chunk; must not exceed `total_chunks`.
     pub current_chunk: u8,
     /// The MAVLink data payload for this chunk.
     data: Vec<u8, 58>,
@@ -24,7 +26,9 @@ impl MavlinkEnvelope {
     /// Creates a new MavlinkEnvelope packet from a slice of data.
     ///
     /// The data slice must not be longer than 58 bytes.
+    /// Both chunk indexes must fit four bits, with `current_chunk <= total_chunks`.
     pub fn new(total_chunks: u8, current_chunk: u8, data: &[u8]) -> Result<Self, CrsfParsingError> {
+        Self::validate_chunks(total_chunks, current_chunk)?;
         if data.len() > 58 {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
@@ -41,6 +45,13 @@ impl MavlinkEnvelope {
     /// Returns the MAVLink data as a slice.
     pub fn data(&self) -> &[u8] {
         &self.data
+    }
+
+    fn validate_chunks(total_chunks: u8, current_chunk: u8) -> Result<(), CrsfParsingError> {
+        if total_chunks > 15 || current_chunk > 15 || current_chunk > total_chunks {
+            return Err(CrsfParsingError::InvalidPayload);
+        }
+        Ok(())
     }
 }
 
@@ -63,13 +74,15 @@ impl CrsfPacket for MavlinkEnvelope {
     const MIN_PAYLOAD_SIZE: usize = 2;
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
+        // Public chunk fields may have been changed after construction.
+        Self::validate_chunks(self.total_chunks, self.current_chunk)?;
         let data_size = self.data.len();
         if buffer.len() < 2 + data_size {
             return Err(CrsfParsingError::BufferOverflow);
         }
 
         // Pack total_chunks and current_chunk into a single byte
-        buffer[0] = (self.total_chunks << 4) | (self.current_chunk & 0x0F);
+        buffer[0] = (self.total_chunks << 4) | self.current_chunk;
         buffer[1] = data_size as u8;
         buffer[2..2 + data_size].copy_from_slice(&self.data);
 
@@ -89,22 +102,68 @@ impl CrsfPacket for MavlinkEnvelope {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 
-        let mut payload_data = Vec::new();
-        payload_data
-            .extend_from_slice(&data[2..2 + data_size])
-            .map_err(|_e| CrsfParsingError::InvalidPayloadLength)?;
-
-        Ok(Self {
-            total_chunks,
-            current_chunk,
-            data: payload_data,
-        })
+        Self::new(total_chunks, current_chunk, &data[2..2 + data_size])
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_all_wire_chunk_indexes() {
+        for chunk_info in 0..=u8::MAX {
+            let total = chunk_info >> 4;
+            let current = chunk_info & 0x0f;
+            let decoded = MavlinkEnvelope::from_bytes(&[chunk_info, 0]);
+            let constructed = MavlinkEnvelope::new(total, current, &[]);
+            if current > total {
+                assert_eq!(decoded, Err(CrsfParsingError::InvalidPayload));
+                assert_eq!(constructed, Err(CrsfParsingError::InvalidPayload));
+            } else {
+                assert_eq!(decoded, constructed);
+                let mut buffer = [0xaa; 2];
+                assert_eq!(constructed.unwrap().to_bytes(&mut buffer), Ok(2));
+                assert_eq!(buffer, [chunk_info, 0]);
+            }
+        }
+    }
+
+    #[test]
+    fn test_invalid_public_chunk_fields() {
+        for (total, current) in [(16, 0), (0, 16), (16, 16), (255, 255), (0, 1), (2, 3)] {
+            assert_eq!(
+                MavlinkEnvelope::new(total, current, &[]),
+                Err(CrsfParsingError::InvalidPayload)
+            );
+            let mut packet = MavlinkEnvelope::new(0, 0, &[1, 2]).unwrap();
+            packet.total_chunks = total;
+            packet.current_chunk = current;
+            let mut buffer = [0xaa; 4];
+            assert_eq!(
+                packet.to_bytes(&mut buffer),
+                Err(CrsfParsingError::InvalidPayload)
+            );
+            assert_eq!(buffer, [0xaa; 4]);
+        }
+    }
+
+    #[test]
+    fn test_data_length_and_buffer_boundaries() {
+        let mut oversized = [0; 61];
+        oversized[1] = 59;
+        assert_eq!(
+            MavlinkEnvelope::from_bytes(&oversized),
+            Err(CrsfParsingError::InvalidPayloadLength)
+        );
+        let packet = MavlinkEnvelope::new(0, 0, &[1, 2]).unwrap();
+        assert_eq!(
+            packet.to_bytes(&mut [0; 3]),
+            Err(CrsfParsingError::BufferOverflow)
+        );
+        let decoded = MavlinkEnvelope::from_bytes(&[0, 2, 1, 2, 0xaa]).unwrap();
+        assert_eq!(decoded, packet);
+    }
 
     #[test]
     fn test_mavlink_envelope_to_bytes() {
