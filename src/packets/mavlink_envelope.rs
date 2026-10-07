@@ -8,6 +8,8 @@ use heapless::Vec;
 /// This packet is used to transfer `MAVLink` protocol frames over CRSF.
 /// Since `MAVLink` frames can be larger than a single CRSF frame, they are
 /// broken up into chunks.
+/// Uses a short header: chunk info and data size immediately follow the type,
+/// without destination or origin bytes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MavlinkEnvelope {
     /// Total number of chunks for the `MAVLink` frame.

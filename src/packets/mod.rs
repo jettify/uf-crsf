@@ -257,12 +257,60 @@ pub enum PacketType {
 }
 
 impl PacketType {
+    /// Whether this frame includes destination and origin bytes after its type.
+    ///
+    /// Logging, ArduPilot legacy/passthrough and MAVLink envelope frames use
+    /// short headers despite their type values being at least 0x28.
     pub fn is_extended(self) -> bool {
-        self as u8 >= 0x28
-            && !matches!(
-                self,
-                Self::Logging | Self::ArdupilotLegacy | Self::ArdupilotResponse
-            )
+        // Keep this exhaustive so new types require an explicit header choice.
+        // In particular, future mLRS variants (0x81/0x82) need short headers:
+        // 0x81's 0x4F/0x57 bytes are mBridge sync, not routing addresses.
+        match self {
+            Self::Gps
+            | Self::GpsTime
+            | Self::GpsExtended
+            | Self::Vario
+            | Self::BatterySensor
+            | Self::BaroAltitude
+            | Self::AirSpeed
+            | Self::Rpm
+            | Self::Temp
+            | Self::Voltages
+            | Self::VtxTelemetry
+            | Self::Barometer
+            | Self::Magnetometer
+            | Self::AccelGyro
+            | Self::Heartbeat
+            | Self::LinkStatistics
+            | Self::LinkStatisticsRepeater
+            | Self::RcChannelsPacked
+            | Self::SubsetRcChannelsPacked
+            | Self::LinkStatisticsRx
+            | Self::LinkStatisticsTx
+            | Self::Attitude
+            | Self::MavLinkFc
+            | Self::FlightMode
+            | Self::EspNow
+            | Self::Logging
+            | Self::ArdupilotLegacy
+            | Self::ArdupilotResponse
+            | Self::MavlinkEnvelope => false,
+            Self::DevicePing
+            | Self::DeviceInfo
+            | Self::ParameterSettingsEntry
+            | Self::ParameterRead
+            | Self::ParameterWrite
+            | Self::ElrsStatus
+            | Self::Command
+            | Self::RadioId
+            | Self::KissRequest
+            | Self::KissResponse
+            | Self::MspRequest
+            | Self::MspResponse
+            | Self::MspWrite
+            | Self::MavLinkSensor
+            | Self::Game => true,
+        }
     }
 }
 
@@ -336,6 +384,102 @@ pub fn write_packet_to_buffer<T: CrsfPacket>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn check_codec_header<T: CrsfPacket>(payload: &[u8], extended: bool) {
+        assert_eq!(
+            T::PACKET_TYPE.is_extended(),
+            extended,
+            "{:?}",
+            T::PACKET_TYPE
+        );
+        let packet = T::from_bytes(payload).unwrap();
+        let mut buffer = [0u8; 64];
+        let len =
+            write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
+        // The codec owns the routing bytes when present. Framing must neither
+        // insert addresses into short payloads nor duplicate extended headers.
+        assert_eq!(&buffer[3..len - 1], payload, "{:?}", T::PACKET_TYPE);
+        let mut parser = crate::CrsfParser::new();
+        let parsed = parser.iter_packets(&buffer[..len]).next().unwrap().unwrap();
+        assert!(!matches!(parsed, Packet::NotImlemented(_, _)));
+    }
+
+    #[test]
+    fn test_header_classification_matches_all_implemented_codecs() {
+        macro_rules! short_codecs {
+            ($($codec:ty),+ $(,)?) => {
+                $(check_codec_header::<$codec>(&[0; <$codec>::MIN_PAYLOAD_SIZE], false);)+
+            };
+        }
+        short_codecs!(
+            AccelGyro,
+            AirSpeed,
+            Attitude,
+            BaroAltitude,
+            Barometer,
+            Battery,
+            EspNow,
+            FlightMode,
+            Gps,
+            GpsExtended,
+            GpsTime,
+            Heartbeat,
+            LinkStatistics,
+            LinkStatisticsRepeater,
+            LinkStatisticsRx,
+            LinkStatisticsTx,
+            Logging,
+            Magnetometer,
+            MavLinkFc,
+            RcChannelsPacked,
+            Temp,
+            VariometerSensor,
+            Voltages,
+            VtxTelemetry,
+        );
+        check_codec_header::<Rpm>(&[0, 0, 0, 0], false);
+        check_codec_header::<ArduPilotLegacy>(&[0xf0, 1, 2, 3, 4, 5, 6], false);
+        check_codec_header::<ArduPilotPassthrough>(&[0xf0, 1, 2, 3, 4, 5, 6], false);
+        check_codec_header::<MavlinkEnvelope>(&[0x21, 2, 0xfe, 0xfd], false);
+
+        // Distinct destination/origin bytes at the start of each extended codec.
+        check_codec_header::<DevicePing>(&[0xea, 0xec], true);
+        let mut info = [0; DeviceInformation::MIN_PAYLOAD_SIZE];
+        info[..2].copy_from_slice(&[0xea, 0xec]);
+        check_codec_header::<DeviceInformation>(&info, true);
+        check_codec_header::<Game>(&[0xea, 0xec, 1, 0, 42], true);
+        check_codec_header::<Remote>(&[0xea, 0xec, 0x10, 0, 0, 0, 1, 0, 0, 0, 2], true);
+        check_codec_header::<MavLinkSensor>(
+            &[0xea, 0xec, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3],
+            true,
+        );
+        let command = DirectCommands {
+            dst_addr: 0xea,
+            src_addr: 0xec,
+            payload: commands::CommandPayload::Fc(commands::FcCommand::ForceDisarm),
+        };
+        let mut payload = [0; 60];
+        let len = command.to_bytes(&mut payload).unwrap();
+        check_codec_header::<DirectCommands>(&payload[..len], true);
+    }
+
+    #[test]
+    fn test_header_classification_for_unimplemented_types() {
+        assert!(!PacketType::SubsetRcChannelsPacked.is_extended());
+        for packet_type in [
+            PacketType::ParameterSettingsEntry,
+            PacketType::ParameterRead,
+            PacketType::ParameterWrite,
+            PacketType::ElrsStatus,
+            PacketType::KissRequest,
+            PacketType::KissResponse,
+            PacketType::MspRequest,
+            PacketType::MspResponse,
+            PacketType::MspWrite,
+        ] {
+            assert!(packet_type.is_extended(), "{packet_type:?}");
+        }
+    }
 
     struct MockPacket {
         payload: [u8; 2],
