@@ -81,11 +81,12 @@ pub trait CrsfPacket: Sized {
     const PACKET_TYPE: PacketType;
 
     /// The minimum expected length of the packet's payload in bytes.
-    /// For fixed-size packets, this is the same as the payload size.
+    /// For fixed-size packets, this is the size of the known mandatory fields.
     const MIN_PAYLOAD_SIZE: usize;
 
     /// Creates a packet instance from a payload byte slice.
-    /// The slice is guaranteed to have a length of at least `MIN_PAYLOAD_SIZE`.
+    /// Reject truncated mandatory fields and ignore unknown trailing extension fields.
+    /// Known optional fields must be decoded according to the packet layout.
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError>;
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError>;
 
