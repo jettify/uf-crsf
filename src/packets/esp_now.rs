@@ -52,7 +52,7 @@ impl CrsfPacket for EspNow {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::MIN_PAYLOAD_SIZE {
+        if data.len() < Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
 

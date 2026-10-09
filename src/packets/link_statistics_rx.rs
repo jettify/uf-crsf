@@ -79,7 +79,9 @@ impl CrsfPacket for LinkStatisticsRx {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() != Self::MIN_PAYLOAD_SIZE && data.len() != Self::EXTENDED_PAYLOAD_SIZE {
+        if data.len() < Self::MIN_PAYLOAD_SIZE
+            || (data.len() > Self::MIN_PAYLOAD_SIZE && data.len() < Self::EXTENDED_PAYLOAD_SIZE)
+        {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
         Ok(Self {
@@ -233,8 +235,9 @@ mod tests {
     fn test_invalid_payload_lengths() {
         let data = [0; LinkStatisticsRx::EXTENDED_PAYLOAD_SIZE + 1];
         for len in 0..=data.len() {
-            if len != LinkStatisticsRx::MIN_PAYLOAD_SIZE
-                && len != LinkStatisticsRx::EXTENDED_PAYLOAD_SIZE
+            if len < LinkStatisticsRx::MIN_PAYLOAD_SIZE
+                || (len > LinkStatisticsRx::MIN_PAYLOAD_SIZE
+                    && len < LinkStatisticsRx::EXTENDED_PAYLOAD_SIZE)
             {
                 assert_eq!(
                     LinkStatisticsRx::from_bytes(&data[..len]),

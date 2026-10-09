@@ -81,7 +81,7 @@ impl CrsfPacket for LinkStatisticsRepeater {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() == Self::MIN_PAYLOAD_SIZE {
+        if data.len() >= Self::MIN_PAYLOAD_SIZE {
             Ok(Self {
                 uplink_rssi_1: data[0],
                 uplink_rssi_2: data[1],
@@ -146,13 +146,11 @@ mod tests {
     #[test]
     fn test_invalid_payload_lengths() {
         let data = [0; 60];
-        for len in 0..=data.len() {
-            if len != LinkStatisticsRepeater::MIN_PAYLOAD_SIZE {
-                assert_eq!(
-                    LinkStatisticsRepeater::from_bytes(&data[..len]),
-                    Err(CrsfParsingError::InvalidPayloadLength)
-                );
-            }
+        for len in 0..LinkStatisticsRepeater::MIN_PAYLOAD_SIZE {
+            assert_eq!(
+                LinkStatisticsRepeater::from_bytes(&data[..len]),
+                Err(CrsfParsingError::InvalidPayloadLength)
+            );
         }
     }
 

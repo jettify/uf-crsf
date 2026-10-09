@@ -49,7 +49,7 @@ impl CrsfPacket for MavLinkFc {
         Ok(Self::MIN_PAYLOAD_SIZE)
     }
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() == Self::MIN_PAYLOAD_SIZE {
+        if data.len() >= Self::MIN_PAYLOAD_SIZE {
             Ok(Self {
                 airspeed: i16::from_be_bytes(
                     data[0..2]

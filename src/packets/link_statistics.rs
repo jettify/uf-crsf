@@ -82,7 +82,7 @@ impl CrsfPacket for LinkStatistics {
     }
 
     fn from_bytes(data: &[u8]) -> Result<Self, CrsfParsingError> {
-        if data.len() == Self::MIN_PAYLOAD_SIZE {
+        if data.len() >= Self::MIN_PAYLOAD_SIZE {
             Ok(Self {
                 uplink_rssi_1: data[0],
                 uplink_rssi_2: data[1],
