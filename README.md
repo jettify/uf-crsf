@@ -28,58 +28,58 @@ This library provides a two-layer API:
 - `🟡` - Partial implementation or known protocol compatibility gaps
 - `🔴` - Not Implemented
 
-| Packet Name | Frame Type | Status |
-| :--- | :--- | :--- |
-| **Broadcast / Short Header Frames** | | |
-| GPS | `0x02` | 🟢 |
-| GPS Time | `0x03` | 🟢 |
-| GPS Extended | `0x06` | 🟢 |
-| Variometer Sensor | `0x07` | 🟢 |
-| Battery Sensor | `0x08` | 🟢 (optional sensor ID supported) |
-| Barometric Altitude & Vertical Speed | `0x09` | 🟢 |
-| Airspeed | `0x0A` | 🟢 |
-| Heartbeat | `0x0B` | 🟢 |
-| RPM | `0x0C` | 🟢 |
-| TEMP | `0x0D` | 🟢 |
-| Voltages | `0x0E` | 🟢 |
-| Discontinued | `0x0F` | 🔴 |
-| VTX Telemetry | `0x10` | 🟢 |
-| Barometer | `0x11` | 🟢 |
-| Magnetometer | `0x12` | 🟢 |
-| Accel Gyro | `0x13` | 🟢 |
-| Link Statistics | `0x14` | 🟢 |
-| Link Statistics Repeater | `0x15` | 🟢 |
-| RC Channels Packed Payload | `0x16` | 🟢 |
-| Subset RC Channels Packed | `0x17` | 🔴 |
-| RC Channels Packed 11-bits (Unused) | `0x18` | 🔴 |
-| Link Statistics RX | `0x1C` | 🟢 (legacy 5-byte and extended 7-byte payloads) |
-| Link Statistics TX | `0x1D` | 🟢 (legacy 6-byte and extended 8-byte payloads) |
-| Attitude | `0x1E` | 🟢 |
-| MAVLink FC | `0x1F` | 🟢 |
-| Flight Mode | `0x21` | 🟢 |
-| ESP_NOW Messages | `0x22` | 🟢 |
-| Logging | `0x34` | 🟢 |
-| ArduPilot Reserved Passthrough Frame | `0x80` | 🟢 (single, multi-packet, and status text) |
-| mLRS Reserved | `0x81, 0x82` | 🔴 |
-| CRSF MAVLink Envelope | `0xAA` | 🟢 |
-| **Extended Frames** | | |
-| Parameter Ping Devices | `0x28` | 🟢 |
-| Parameter Device Information | `0x29` | 🟢 |
-| Parameter Settings (Entry) | `0x2B` | 🔴 |
-| Parameter Settings (Read) | `0x2C` | 🔴 |
-| Parameter Value (Write) | `0x2D` | 🔴 |
-| Direct Commands | `0x32` | 🟡 (selected FC, OSD, VTX, Crossfire, flow control and ACK commands) |
-| Remote Related Frames | `0x3A` | 🟢 (timing correction subtype `0x10`) |
-| Game | `0x3C` | 🟢 |
-| MSP Request | `0x7A` | 🔴 |
-| MSP Response | `0x7B` | 🔴 |
-| CRSF MAVLink System Status Sensor | `0xAC` | 🟢 |
-| **Reserved / Version-specific Frames** | | |
-| Crossfire Reserved | `0x19 - 0x1B` | 🔴 |
-| Reserved | `0x27, 0x36, 0x38, 0x3E, 0x40` | 🔴 |
-| KISSFC Reserved | `0x78 - 0x79` | 🔴 |
-| ArduPilot Legacy Reserved | `0x7F` | 🟢 (same payloads as `0x80`) |
-| Rotorflight Telemetry Envelope | `0x88` | 🔴 |
+| Packet Name | Frame Type | Status | Notes |
+| :--- | :--- | :--- | :--- |
+| **Broadcast / Short Header Frames** |  |  |  |
+| GPS | `0x02` | 🟢 |  |
+| GPS Time | `0x03` | 🟢 |  |
+| GPS Extended | `0x06` | 🟢 |  |
+| Variometer Sensor | `0x07` | 🟢 |  |
+| Battery Sensor | `0x08` | 🟢 | optional sensor ID supported |
+| Barometric Altitude & Vertical Speed | `0x09` | 🟢 |  |
+| Airspeed | `0x0A` | 🟢 |  |
+| Heartbeat | `0x0B` | 🟢 |  |
+| RPM | `0x0C` | 🟢 |  |
+| TEMP | `0x0D` | 🟢 |  |
+| Voltages | `0x0E` | 🟢 |  |
+| Discontinued | `0x0F` | 🔴 |  |
+| VTX Telemetry | `0x10` | 🟢 |  |
+| Barometer | `0x11` | 🟢 |  |
+| Magnetometer | `0x12` | 🟢 |  |
+| Accel Gyro | `0x13` | 🟢 |  |
+| Link Statistics | `0x14` | 🟢 |  |
+| Link Statistics Repeater | `0x15` | 🟢 |  |
+| RC Channels Packed Payload | `0x16` | 🟢 |  |
+| Subset RC Channels Packed | `0x17` | 🔴 |  |
+| RC Channels Packed 11-bits (Unused) | `0x18` | 🔴 |  |
+| Link Statistics RX | `0x1C` | 🟢 | legacy 5-byte and extended 7-byte payloads |
+| Link Statistics TX | `0x1D` | 🟢 | legacy 6-byte and extended 8-byte payloads |
+| Attitude | `0x1E` | 🟢 |  |
+| MAVLink FC | `0x1F` | 🟢 |  |
+| Flight Mode | `0x21` | 🟢 |  |
+| ESP_NOW Messages | `0x22` | 🟢 |  |
+| Logging | `0x34` | 🟢 |  |
+| ArduPilot Reserved Passthrough Frame | `0x80` | 🟢 | single, multi-packet, and status text |
+| mLRS Reserved | `0x81, 0x82` | 🔴 |  |
+| CRSF MAVLink Envelope | `0xAA` | 🟢 |  |
+| **Extended Frames** |  |  |  |
+| Parameter Ping Devices | `0x28` | 🟢 |  |
+| Parameter Device Information | `0x29` | 🟢 |  |
+| Parameter Settings (Entry) | `0x2B` | 🔴 |  |
+| Parameter Settings (Read) | `0x2C` | 🔴 |  |
+| Parameter Value (Write) | `0x2D` | 🔴 |  |
+| Direct Commands | `0x32` | 🟡 | selected FC, OSD, VTX, Crossfire, flow control and ACK commands |
+| Remote Related Frames | `0x3A` | 🟢 | timing correction subtype `0x10` |
+| Game | `0x3C` | 🟢 |  |
+| MSP Request | `0x7A` | 🔴 |  |
+| MSP Response | `0x7B` | 🔴 |  |
+| CRSF MAVLink System Status Sensor | `0xAC` | 🟢 |  |
+| **Reserved / Version-specific Frames** |  |  |  |
+| Crossfire Reserved | `0x19 - 0x1B` | 🔴 |  |
+| Reserved | `0x27, 0x36, 0x38, 0x3E, 0x40` | 🔴 |  |
+| KISSFC Reserved | `0x78 - 0x79` | 🔴 |  |
+| ArduPilot Legacy Reserved | `0x7F` | 🟢 | same payloads as `0x80` |
+| Rotorflight Telemetry Envelope | `0x88` | 🔴 |  |
 
 ## Note
 
