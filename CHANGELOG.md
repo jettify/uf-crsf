@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/jettify/uf-crsf/compare/v0.6.1...v0.7.0) - 2026-10-10
+
+### Added
+
+- Complaint parsing of unknown fields. ([#107](https://github.com/jettify/uf-crsf/issues/107))
+- Implement Ardupilot passthrought packet. ([#104](https://github.com/jettify/uf-crsf/issues/104))
+- Addd LinkStatisticsRepeater packet ([#102](https://github.com/jettify/uf-crsf/issues/102))
+- Update link statistics packets to new format. ([#101](https://github.com/jettify/uf-crsf/issues/101))
+- Add optional sernsor id support for battery packet. ([#100](https://github.com/jettify/uf-crsf/issues/100))
+
+### Fixed
+
+- Fix derect command max packet size, validation and docs. ([#108](https://github.com/jettify/uf-crsf/issues/108))
+- Fix mavlink envelop validation of total chunks. ([#106](https://github.com/jettify/uf-crsf/issues/106))
+- Fixed logging packet, containing extended header. ([#103](https://github.com/jettify/uf-crsf/issues/103))
+
+### Other
+
+- Proper is extedned check, closer to protocol spec. ([#105](https://github.com/jettify/uf-crsf/issues/105))
+- Update implementation status in README
+- Adress cargo audit warnings.
+- Update dependencies.
+
 ## [0.6.1](https://github.com/jettify/uf-crsf/compare/v0.6.0...v0.6.1) - 2026-05-19
 
 ### Fixed
