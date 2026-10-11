@@ -1,4 +1,5 @@
-use super::codec::{Reader, Writer};
+use super::codec::Reader;
+use super::codec::Writer;
 use crate::CrsfParsingError;
 use heapless::Vec;
 

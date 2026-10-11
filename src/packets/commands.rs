@@ -1,4 +1,5 @@
-use crate::packets::{CrsfPacket, PacketType};
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 use crate::CrsfParsingError;
 use crc::Crc;
 use heapless::Vec;
@@ -12,12 +13,15 @@ mod screen;
 
 pub use bluetooth::BluetoothCommand;
 pub use general::GeneralCommand;
-pub use led::{LedColor, LedCommand};
+pub use led::LedColor;
+pub use led::LedCommand;
 pub use rc_over_wifi::RcOverWifiCommand;
-pub use screen::{
-    CommandString, ScreenAdditionalData, ScreenCommand, ScreenPopup, ScreenPopupFields,
-    ScreenSelection,
-};
+pub use screen::CommandString;
+pub use screen::ScreenAdditionalData;
+pub use screen::ScreenCommand;
+pub use screen::ScreenPopup;
+pub use screen::ScreenPopupFields;
+pub use screen::ScreenSelection;
 
 pub const COMMAND_CRC_ALGO: Crc<u8> = Crc::<u8>::new(&crc::Algorithm {
     width: 8,

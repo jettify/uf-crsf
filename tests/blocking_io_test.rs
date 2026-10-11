@@ -2,8 +2,11 @@
 #![cfg(test)]
 extern crate std;
 
-use uf_crsf::blocking_io::{write_packet, BlockingCrsfReader};
-use uf_crsf::packets::{LinkStatistics, Packet, PacketAddress};
+use uf_crsf::blocking_io::write_packet;
+use uf_crsf::blocking_io::BlockingCrsfReader;
+use uf_crsf::packets::LinkStatistics;
+use uf_crsf::packets::Packet;
+use uf_crsf::packets::PacketAddress;
 use uf_crsf::CrsfStreamError;
 
 fn build_link_statistics_packet_bytes() -> std::vec::Vec<u8> {

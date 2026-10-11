@@ -1,5 +1,7 @@
 use uf_crsf::packets::*;
-use uf_crsf::{CrsfParser, CrsfParsingError, CrsfStreamError};
+use uf_crsf::CrsfParser;
+use uf_crsf::CrsfParsingError;
+use uf_crsf::CrsfStreamError;
 
 fn frame(packet_type: PacketType, payload: &[u8]) -> Vec<u8> {
     let mut bytes = vec![0xc8, (payload.len() + 2) as u8, packet_type as u8];
