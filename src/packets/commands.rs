@@ -3,6 +3,22 @@ use crate::CrsfParsingError;
 use crc::Crc;
 use heapless::Vec;
 
+mod bluetooth;
+mod codec;
+mod general;
+mod led;
+mod rc_over_wifi;
+mod screen;
+
+pub use bluetooth::BluetoothCommand;
+pub use general::GeneralCommand;
+pub use led::{LedColor, LedCommand};
+pub use rc_over_wifi::RcOverWifiCommand;
+pub use screen::{
+    CommandString, ScreenAdditionalData, ScreenCommand, ScreenPopup, ScreenPopupFields,
+    ScreenSelection,
+};
+
 pub const COMMAND_CRC_ALGO: Crc<u8> = Crc::<u8>::new(&crc::Algorithm {
     width: 8,
     poly: 0xBA,
@@ -16,10 +32,15 @@ pub const COMMAND_CRC_ALGO: Crc<u8> = Crc::<u8>::new(&crc::Algorithm {
 
 // Command IDs
 const COMMAND_ID_FC: u8 = 0x01;
+const COMMAND_ID_BLUETOOTH: u8 = 0x03;
 const COMMAND_ID_OSD: u8 = 0x05;
 const COMMAND_ID_VTX: u8 = 0x08;
+const COMMAND_ID_LED: u8 = 0x09;
+const COMMAND_ID_GENERAL: u8 = 0x0A;
 const COMMAND_ID_CROSSFIRE: u8 = 0x10;
+const COMMAND_ID_RC_OVER_WIFI: u8 = 0x13;
 const COMMAND_ID_FLOW_CONTROL: u8 = 0x20;
+const COMMAND_ID_SCREEN: u8 = 0x22;
 const COMMAND_ID_ACK: u8 = 0xFF;
 
 // FC Sub-command IDs
@@ -43,6 +64,10 @@ const SUB_COMMAND_ID_CROSSFIRE_SET_BIND_ID: u8 = 0x03;
 const SUB_COMMAND_ID_CROSSFIRE_MODEL_SELECTION: u8 = 0x05;
 const SUB_COMMAND_ID_CROSSFIRE_CURRENT_MODEL_SELECTION: u8 = 0x06;
 const SUB_COMMAND_ID_CROSSFIRE_REPLY_CURRENT_MODEL_SELECTION: u8 = 0x07;
+const SUB_COMMAND_ID_CROSSFIRE_ENABLE_RX_TELEMETRY: u8 = 0x0A;
+const SUB_COMMAND_ID_CROSSFIRE_DISABLE_RX_TELEMETRY: u8 = 0x0B;
+const SUB_COMMAND_ID_CROSSFIRE_FACTORY_RESET: u8 = 0x0C;
+const SUB_COMMAND_ID_CROSSFIRE_RESET_TO_FACTORY_FIRMWARE: u8 = 0x0D;
 
 // Flow Control Sub-command IDs
 const SUB_COMMAND_ID_FLOW_CONTROL_SUBSCRIBE: u8 = 0x01;
@@ -53,6 +78,22 @@ const SUB_COMMAND_ID_FLOW_CONTROL_UNSUBSCRIBE: u8 = 0x02;
 const MAX_ACK_INFORMATION_LEN: usize = crate::constants::CRSF_MAX_PACKET_SIZE - 12;
 
 /// Represents a Direct Commands packet (frame type 0x32).
+///
+/// Command payloads and supporting types are available through `packets`.
+/// For example, constructing a baud-rate proposal does not change the local UART:
+///
+/// ```
+/// use uf_crsf::packets::{CommandPayload, DirectCommands, GeneralCommand};
+///
+/// let command = DirectCommands {
+///     dst_addr: 0xEE,
+///     src_addr: 0xEA,
+///     payload: CommandPayload::General(GeneralCommand::SpeedProposal {
+///         port_id: 0,
+///         proposed_baudrate: 400_000,
+///     }),
+/// };
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct DirectCommands {
@@ -66,10 +107,15 @@ pub struct DirectCommands {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum CommandPayload {
     Fc(FcCommand),
+    Bluetooth(BluetoothCommand),
     Osd(OsdCommand),
     Vtx(VtxCommand),
+    Led(LedCommand),
+    General(GeneralCommand),
     Crossfire(CrossfireCommand),
+    RcOverWifi(RcOverWifiCommand),
     FlowControl(FlowControlCommand),
+    Screen(ScreenCommand),
     Ack(CommandAck),
 }
 
@@ -89,6 +135,9 @@ pub enum OsdCommand {
 }
 
 /// VTX Commands (command ID 0x08)
+///
+/// Discontinued subcommands 0x01 and 0x03 are unsupported because
+/// `docs/crsf.md` does not define their payload layouts.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum VtxCommand {
@@ -106,6 +155,7 @@ pub enum VtxCommand {
     /// Send at 1 Hz. After 3 seconds without an update, the VTX reverts
     /// to the power configured by `SetPower`.
     SetDynamicPower(u8),
+    /// Power in dBm; 0 can be used for pit-mode power.
     SetPower(u8),
 }
 
@@ -119,6 +169,13 @@ pub enum CrossfireCommand {
     ModelSelection(u8),
     CurrentModelSelection,
     ReplyCurrentModelSelection(u8),
+    EnableRxTelemetry,
+    DisableRxTelemetry,
+    /// Reset configuration/NVM. The target acknowledges before resetting.
+    FactoryReset,
+    /// Reset configuration/NVM and restore factory firmware.
+    /// The target acknowledges before resetting.
+    ResetToFactoryFirmware,
 }
 
 /// Flow Control Commands (command ID 0x20)
@@ -127,6 +184,7 @@ pub enum CrossfireCommand {
 pub enum FlowControlCommand {
     Subscribe {
         frame_type: u8,
+        /// Maximum interval in milliseconds.
         max_interval_time: u16,
     },
     Unsubscribe {
@@ -139,7 +197,8 @@ pub enum FlowControlCommand {
 pub struct CommandAck {
     pub command_id: u8,
     pub sub_command_id: u8,
-    pub action: u8, // 0 = rejected, 1 = accepted
+    /// 0 = rejected, 1 = accepted.
+    pub action: u8,
     information: Vec<u8, MAX_ACK_INFORMATION_LEN>,
 }
 
@@ -200,6 +259,9 @@ impl CrsfPacket for DirectCommands {
         if data.len() < Self::MIN_PAYLOAD_SIZE {
             return Err(CrsfParsingError::InvalidPayloadLength);
         }
+        if data.len() > crate::constants::CRSF_MAX_PACKET_SIZE - 4 {
+            return Err(CrsfParsingError::InvalidPayloadLength);
+        }
 
         // data = [dst, src, cmd_id, payload..., crc]
         let crc_byte_index = data.len() - 1;
@@ -223,13 +285,26 @@ impl CrsfPacket for DirectCommands {
 
         let payload = match command_id {
             COMMAND_ID_FC => CommandPayload::Fc(FcCommand::try_from(command_payload_data)?),
+            COMMAND_ID_BLUETOOTH => {
+                CommandPayload::Bluetooth(BluetoothCommand::try_from(command_payload_data)?)
+            }
             COMMAND_ID_OSD => CommandPayload::Osd(OsdCommand::try_from(command_payload_data)?),
             COMMAND_ID_VTX => CommandPayload::Vtx(VtxCommand::try_from(command_payload_data)?),
+            COMMAND_ID_LED => CommandPayload::Led(LedCommand::try_from(command_payload_data)?),
+            COMMAND_ID_GENERAL => {
+                CommandPayload::General(GeneralCommand::try_from(command_payload_data)?)
+            }
             COMMAND_ID_CROSSFIRE => {
                 CommandPayload::Crossfire(CrossfireCommand::try_from(command_payload_data)?)
             }
             COMMAND_ID_FLOW_CONTROL => {
                 CommandPayload::FlowControl(FlowControlCommand::try_from(command_payload_data)?)
+            }
+            COMMAND_ID_RC_OVER_WIFI => {
+                CommandPayload::RcOverWifi(RcOverWifiCommand::try_from(command_payload_data)?)
+            }
+            COMMAND_ID_SCREEN => {
+                CommandPayload::Screen(ScreenCommand::try_from(command_payload_data)?)
             }
             COMMAND_ID_ACK => CommandPayload::Ack(CommandAck::try_from(command_payload_data)?),
             _ => return Err(CrsfParsingError::InvalidPayload), // Unknown command
@@ -243,14 +318,16 @@ impl CrsfPacket for DirectCommands {
     }
 
     fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
-        if buffer.len() < 3 {
+        if buffer.len() < 4 {
             return Err(CrsfParsingError::BufferOverflow);
         }
         buffer[0] = self.dst_addr;
         buffer[1] = self.src_addr;
         buffer[2] = self.payload.command_id();
 
-        let payload_len = self.payload.write_to(&mut buffer[3..])?;
+        // Reserve the command CRC and enforce the 64-byte full-frame limit.
+        let end = buffer.len().min(crate::constants::CRSF_MAX_PACKET_SIZE - 4);
+        let payload_len = self.payload.write_to(&mut buffer[3..end - 1])?;
         let total_len = 3 + payload_len;
 
         // Calculate and append CRC
@@ -272,10 +349,15 @@ impl CommandPayload {
     fn command_id(&self) -> u8 {
         match self {
             CommandPayload::Fc(_) => COMMAND_ID_FC,
+            CommandPayload::Bluetooth(_) => COMMAND_ID_BLUETOOTH,
             CommandPayload::Osd(_) => COMMAND_ID_OSD,
             CommandPayload::Vtx(_) => COMMAND_ID_VTX,
+            CommandPayload::Led(_) => COMMAND_ID_LED,
+            CommandPayload::General(_) => COMMAND_ID_GENERAL,
             CommandPayload::Crossfire(_) => COMMAND_ID_CROSSFIRE,
+            CommandPayload::RcOverWifi(_) => COMMAND_ID_RC_OVER_WIFI,
             CommandPayload::FlowControl(_) => COMMAND_ID_FLOW_CONTROL,
+            CommandPayload::Screen(_) => COMMAND_ID_SCREEN,
             CommandPayload::Ack(_) => COMMAND_ID_ACK,
         }
     }
@@ -283,10 +365,15 @@ impl CommandPayload {
     fn write_to(&self, buffer: &mut [u8]) -> Result<usize, CrsfParsingError> {
         match self {
             CommandPayload::Fc(cmd) => cmd.write_to(buffer),
+            CommandPayload::Bluetooth(cmd) => cmd.write_to(buffer),
             CommandPayload::Osd(cmd) => cmd.write_to(buffer),
             CommandPayload::Vtx(cmd) => cmd.write_to(buffer),
+            CommandPayload::Led(cmd) => cmd.write_to(buffer),
+            CommandPayload::General(cmd) => cmd.write_to(buffer),
             CommandPayload::Crossfire(cmd) => cmd.write_to(buffer),
+            CommandPayload::RcOverWifi(cmd) => cmd.write_to(buffer),
             CommandPayload::FlowControl(cmd) => cmd.write_to(buffer),
+            CommandPayload::Screen(cmd) => cmd.write_to(buffer),
             CommandPayload::Ack(cmd) => cmd.write_to(buffer),
         }
     }
@@ -470,6 +557,22 @@ impl CrossfireCommand {
             return Err(CrsfParsingError::BufferOverflow);
         }
         match self {
+            CrossfireCommand::EnableRxTelemetry => {
+                buffer[0] = SUB_COMMAND_ID_CROSSFIRE_ENABLE_RX_TELEMETRY;
+                Ok(1)
+            }
+            CrossfireCommand::DisableRxTelemetry => {
+                buffer[0] = SUB_COMMAND_ID_CROSSFIRE_DISABLE_RX_TELEMETRY;
+                Ok(1)
+            }
+            CrossfireCommand::FactoryReset => {
+                buffer[0] = SUB_COMMAND_ID_CROSSFIRE_FACTORY_RESET;
+                Ok(1)
+            }
+            CrossfireCommand::ResetToFactoryFirmware => {
+                buffer[0] = SUB_COMMAND_ID_CROSSFIRE_RESET_TO_FACTORY_FIRMWARE;
+                Ok(1)
+            }
             CrossfireCommand::SetReceiverInBindMode => {
                 buffer[0] = SUB_COMMAND_ID_CROSSFIRE_SET_RECEIVER_IN_BIND_MODE;
                 Ok(1)
@@ -516,6 +619,14 @@ impl<'a> TryFrom<&'a [u8]> for CrossfireCommand {
         let sub_command_id = data[0];
         let payload = &data[1..];
         match sub_command_id {
+            SUB_COMMAND_ID_CROSSFIRE_ENABLE_RX_TELEMETRY => Ok(CrossfireCommand::EnableRxTelemetry),
+            SUB_COMMAND_ID_CROSSFIRE_DISABLE_RX_TELEMETRY => {
+                Ok(CrossfireCommand::DisableRxTelemetry)
+            }
+            SUB_COMMAND_ID_CROSSFIRE_FACTORY_RESET => Ok(CrossfireCommand::FactoryReset),
+            SUB_COMMAND_ID_CROSSFIRE_RESET_TO_FACTORY_FIRMWARE => {
+                Ok(CrossfireCommand::ResetToFactoryFirmware)
+            }
             SUB_COMMAND_ID_CROSSFIRE_SET_RECEIVER_IN_BIND_MODE => {
                 Ok(CrossfireCommand::SetReceiverInBindMode)
             }
