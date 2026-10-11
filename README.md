@@ -35,7 +35,7 @@ This library provides a two-layer API:
 | GPS Time | `0x03` | 🟢 |  |
 | GPS Extended | `0x06` | 🟢 |  |
 | Variometer Sensor | `0x07` | 🟢 |  |
-| Battery Sensor | `0x08` | 🟢 | optional sensor ID supported |
+| Battery Sensor | `0x08` | 🟢 |  |
 | Barometric Altitude & Vertical Speed | `0x09` | 🟢 |  |
 | Airspeed | `0x0A` | 🟢 |  |
 | Heartbeat | `0x0B` | 🟢 |  |
@@ -68,7 +68,7 @@ This library provides a two-layer API:
 | Parameter Settings (Entry) | `0x2B` | 🔴 |  |
 | Parameter Settings (Read) | `0x2C` | 🔴 |  |
 | Parameter Value (Write) | `0x2D` | 🔴 |  |
-| Direct Commands | `0x32` | 🟡 | selected FC, OSD, VTX, Crossfire, flow control and ACK commands |
+| Direct Commands | `0x32` | 🟢 | discontinued VTX `0x01`/`0x03` payloads are unspecified and unsupported |
 | Remote Related Frames | `0x3A` | 🟢 | timing correction subtype `0x10` |
 | Game | `0x3C` | 🟢 |  |
 | MSP Request | `0x7A` | 🔴 |  |

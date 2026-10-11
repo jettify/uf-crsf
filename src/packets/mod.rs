@@ -46,7 +46,12 @@ pub use attitude::Attitude;
 pub use baro_altitude::BaroAltitude;
 pub use barometer::Barometer;
 pub use battery::Battery;
-pub use commands::DirectCommands;
+pub use commands::{
+    BluetoothCommand, CommandAck, CommandPayload, CommandString, CrossfireCommand, DirectCommands,
+    FcCommand, FlowControlCommand, GeneralCommand, LedColor, LedCommand, OsdCommand,
+    RcOverWifiCommand, ScreenAdditionalData, ScreenCommand, ScreenPopup, ScreenPopupFields,
+    ScreenSelection, VtxCommand,
+};
 pub use device_information::DeviceInformation;
 pub use device_ping::DevicePing;
 pub use esp_now::EspNow;
