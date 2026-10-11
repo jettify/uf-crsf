@@ -1,4 +1,5 @@
-use super::codec::{Reader, Writer};
+use super::codec::Reader;
+use super::codec::Writer;
 use crate::CrsfParsingError;
 
 const SUB_COMMAND_ID_LED_SET_DEFAULT: u8 = 0x01;

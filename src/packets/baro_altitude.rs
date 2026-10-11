@@ -2,7 +2,8 @@ use crate::packets::CrsfPacket;
 use crate::packets::PacketType;
 use crate::CrsfParsingError;
 use core::f32::consts::E;
-use libm::{logf, powf};
+use libm::logf;
+use libm::powf;
 
 /// Represents a Barometric Altitude & Vertical Speed packet.
 ///

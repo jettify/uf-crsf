@@ -1,10 +1,14 @@
 #![cfg(test)]
 extern crate std;
 
-use uf_crsf::packets::{
-    Battery, LinkStatistics, LinkStatisticsRepeater, LinkStatisticsRx, LinkStatisticsTx, Packet,
-    PacketAddress, PacketType,
-};
+use uf_crsf::packets::Battery;
+use uf_crsf::packets::LinkStatistics;
+use uf_crsf::packets::LinkStatisticsRepeater;
+use uf_crsf::packets::LinkStatisticsRx;
+use uf_crsf::packets::LinkStatisticsTx;
+use uf_crsf::packets::Packet;
+use uf_crsf::packets::PacketAddress;
+use uf_crsf::packets::PacketType;
 use uf_crsf::parser::CrsfParser;
 use uf_crsf::write_packet_to_buffer;
 use uf_crsf::CrsfStreamError;

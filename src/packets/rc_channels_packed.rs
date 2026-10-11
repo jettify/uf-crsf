@@ -77,7 +77,8 @@ impl CrsfPacket for RcChannelsPacked {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packets::{write_packet_to_buffer, PacketAddress};
+    use crate::packets::write_packet_to_buffer;
+    use crate::packets::PacketAddress;
 
     #[test]
     fn test_rc_channels_from_hardware_bytes() {

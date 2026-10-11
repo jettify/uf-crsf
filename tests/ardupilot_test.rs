@@ -1,8 +1,12 @@
-use uf_crsf::packets::{
-    ArduPilotLegacy, ArduPilotPassthrough, Packet, PacketAddress, PacketType,
-    PassthroughStatusText, PassthroughTelemetryPacket,
-};
-use uf_crsf::{write_packet_to_buffer, CrsfParser};
+use uf_crsf::packets::ArduPilotLegacy;
+use uf_crsf::packets::ArduPilotPassthrough;
+use uf_crsf::packets::Packet;
+use uf_crsf::packets::PacketAddress;
+use uf_crsf::packets::PacketType;
+use uf_crsf::packets::PassthroughStatusText;
+use uf_crsf::packets::PassthroughTelemetryPacket;
+use uf_crsf::write_packet_to_buffer;
+use uf_crsf::CrsfParser;
 
 #[test]
 fn independent_wire_fixtures() {

@@ -39,19 +39,33 @@ mod vtx_telemetry;
 
 pub use accel_gyro::AccelGyro;
 pub use airspeed::AirSpeed;
-pub use ardupilot::{
-    ArduPilotLegacy, ArduPilotPassthrough, PassthroughStatusText, PassthroughTelemetryPacket,
-};
+pub use ardupilot::ArduPilotLegacy;
+pub use ardupilot::ArduPilotPassthrough;
+pub use ardupilot::PassthroughStatusText;
+pub use ardupilot::PassthroughTelemetryPacket;
 pub use attitude::Attitude;
 pub use baro_altitude::BaroAltitude;
 pub use barometer::Barometer;
 pub use battery::Battery;
-pub use commands::{
-    BluetoothCommand, CommandAck, CommandPayload, CommandString, CrossfireCommand, DirectCommands,
-    FcCommand, FlowControlCommand, GeneralCommand, LedColor, LedCommand, OsdCommand,
-    RcOverWifiCommand, ScreenAdditionalData, ScreenCommand, ScreenPopup, ScreenPopupFields,
-    ScreenSelection, VtxCommand,
-};
+pub use commands::BluetoothCommand;
+pub use commands::CommandAck;
+pub use commands::CommandPayload;
+pub use commands::CommandString;
+pub use commands::CrossfireCommand;
+pub use commands::DirectCommands;
+pub use commands::FcCommand;
+pub use commands::FlowControlCommand;
+pub use commands::GeneralCommand;
+pub use commands::LedColor;
+pub use commands::LedCommand;
+pub use commands::OsdCommand;
+pub use commands::RcOverWifiCommand;
+pub use commands::ScreenAdditionalData;
+pub use commands::ScreenCommand;
+pub use commands::ScreenPopup;
+pub use commands::ScreenPopupFields;
+pub use commands::ScreenSelection;
+pub use commands::VtxCommand;
 pub use device_information::DeviceInformation;
 pub use device_ping::DevicePing;
 pub use esp_now::EspNow;

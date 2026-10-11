@@ -1,8 +1,7 @@
-use crate::{
-    constants,
-    error::CrsfStreamError,
-    packets::{Packet, PacketAddress},
-};
+use crate::constants;
+use crate::error::CrsfStreamError;
+use crate::packets::Packet;
+use crate::packets::PacketAddress;
 use crc::Crc;
 use num_enum::TryFromPrimitive;
 
@@ -233,10 +232,12 @@ mod tests {
     extern crate std;
 
     use super::*;
-    use crate::packets::{
-        write_packet_to_buffer, CrsfPacket, LinkStatistics, PacketAddress, PacketType,
-        RcChannelsPacked,
-    };
+    use crate::packets::write_packet_to_buffer;
+    use crate::packets::CrsfPacket;
+    use crate::packets::LinkStatistics;
+    use crate::packets::PacketAddress;
+    use crate::packets::PacketType;
+    use crate::packets::RcChannelsPacked;
 
     #[test]
     fn test_construction() {

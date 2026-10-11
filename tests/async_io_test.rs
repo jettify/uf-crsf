@@ -2,8 +2,11 @@
 #![cfg(test)]
 extern crate std;
 
-use uf_crsf::async_io::{write_packet, AsyncCrsfReader};
-use uf_crsf::packets::{LinkStatistics, Packet, PacketAddress};
+use uf_crsf::async_io::write_packet;
+use uf_crsf::async_io::AsyncCrsfReader;
+use uf_crsf::packets::LinkStatistics;
+use uf_crsf::packets::Packet;
+use uf_crsf::packets::PacketAddress;
 use uf_crsf::CrsfStreamError;
 
 async fn build_link_statistics_packet_bytes(uplink_rssi_1: u8) -> std::vec::Vec<u8> {

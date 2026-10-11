@@ -1,10 +1,28 @@
-use uf_crsf::packets::{
-    BluetoothCommand, CommandAck, CommandPayload, CommandString, CrossfireCommand, CrsfPacket,
-    DirectCommands, FcCommand, FlowControlCommand, GeneralCommand, LedColor, LedCommand,
-    OsdCommand, RcOverWifiCommand, ScreenAdditionalData, ScreenCommand, ScreenPopup,
-    ScreenPopupFields, ScreenSelection, VtxCommand,
-};
-use uf_crsf::{write_packet_to_buffer, CrsfParser, CrsfParsingError, Packet, PacketAddress};
+use uf_crsf::packets::BluetoothCommand;
+use uf_crsf::packets::CommandAck;
+use uf_crsf::packets::CommandPayload;
+use uf_crsf::packets::CommandString;
+use uf_crsf::packets::CrossfireCommand;
+use uf_crsf::packets::CrsfPacket;
+use uf_crsf::packets::DirectCommands;
+use uf_crsf::packets::FcCommand;
+use uf_crsf::packets::FlowControlCommand;
+use uf_crsf::packets::GeneralCommand;
+use uf_crsf::packets::LedColor;
+use uf_crsf::packets::LedCommand;
+use uf_crsf::packets::OsdCommand;
+use uf_crsf::packets::RcOverWifiCommand;
+use uf_crsf::packets::ScreenAdditionalData;
+use uf_crsf::packets::ScreenCommand;
+use uf_crsf::packets::ScreenPopup;
+use uf_crsf::packets::ScreenPopupFields;
+use uf_crsf::packets::ScreenSelection;
+use uf_crsf::packets::VtxCommand;
+use uf_crsf::write_packet_to_buffer;
+use uf_crsf::CrsfParser;
+use uf_crsf::CrsfParsingError;
+use uf_crsf::Packet;
+use uf_crsf::PacketAddress;
 
 // Independent reference CRCs, rather than the codec's CRC implementation.
 fn crc(data: &[u8], polynomial: u8) -> u8 {

@@ -1,4 +1,5 @@
-use crate::packets::{CrsfPacket, PacketType};
+use crate::packets::CrsfPacket;
+use crate::packets::PacketType;
 use crate::CrsfParsingError;
 use core::mem::size_of;
 use heapless::String;

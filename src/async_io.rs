@@ -1,7 +1,11 @@
 use crate::error::CrsfStreamError;
-use crate::packets::{write_packet_to_buffer, CrsfPacket, Packet, PacketAddress};
+use crate::packets::write_packet_to_buffer;
+use crate::packets::CrsfPacket;
+use crate::packets::Packet;
+use crate::packets::PacketAddress;
 use crate::parser::CrsfParser;
-use embedded_io_async::{Error, Write};
+use embedded_io_async::Error;
+use embedded_io_async::Write;
 use heapless::Deque;
 
 const ASYNC_IO_BUFFER_SIZE: usize = crate::constants::CRSF_MAX_PACKET_SIZE * 2;

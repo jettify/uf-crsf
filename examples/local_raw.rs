@@ -1,4 +1,5 @@
-use std::io::{ErrorKind, Read};
+use std::io::ErrorKind;
+use std::io::Read;
 use std::process::exit;
 use std::time::Duration;
 use uf_crsf::packets::PacketType;
