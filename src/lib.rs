@@ -20,4 +20,5 @@ pub use packets::Packet;
 pub use packets::PacketAddress;
 pub use packets::PacketType;
 pub use parser::CrsfParser;
+pub use parser::PacketIterator;
 pub use parser::RawCrsfPacket;

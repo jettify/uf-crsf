@@ -23,14 +23,13 @@ fn main() {
     loop {
         match port.read(buf.as_mut_slice()) {
             Ok(n) => {
-                for &byte in &buf[..n] {
-                    let raw_packet_result = parser.push_byte_raw(byte);
+                let mut input = &buf[..n];
+                while let Some(raw_packet_result) = parser.next_raw_packet(&mut input) {
                     match raw_packet_result {
-                        Ok(Some(raw_packet)) => {
+                        Ok(raw_packet) => {
                             let packet_type = PacketType::try_from(raw_packet.raw_packet_type());
                             println!("{:?} -> {:?}", packet_type, raw_packet);
                         }
-                        Ok(None) => (),
                         Err(e) => println!("Parsing error: {:?}", e),
                     }
                 }
