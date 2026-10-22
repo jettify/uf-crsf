@@ -22,6 +22,15 @@ pub struct CrsfParser {
     buffer: [u8; constants::CRSF_MAX_PACKET_SIZE],
     state: State,
     len: usize,
+    /// Bytes to scan again before any new input: everything after the start
+    /// byte of a split candidate that failed its CRC. A start byte value can
+    /// occur inside a frame (`0x80 0x0F` near the end of an RC channels frame
+    /// reads as a start byte and a valid length); skipping the failed
+    /// candidate's bytes would skip the real start byte it swallowed, and a
+    /// periodic stream can repeat that on every frame.
+    rescan: [u8; constants::CRSF_MAX_PACKET_SIZE],
+    rescan_start: usize,
+    rescan_end: usize,
 }
 
 const CRC8_DVB_S2: Crc<u8> = Crc::<u8>::new(&crc::CRC_8_DVB_S2);
@@ -32,14 +41,30 @@ impl CrsfParser {
             buffer: [0; constants::CRSF_MAX_PACKET_SIZE],
             state: State::AwaitingSync,
             len: 0,
+            rescan: [0; constants::CRSF_MAX_PACKET_SIZE],
+            rescan_start: 0,
+            rescan_end: 0,
         }
     }
 
+    /// Feeds one byte and returns the next frame or framing error, if any.
+    ///
+    /// After a candidate fails its CRC, the bytes after its start byte are
+    /// scanned again before `byte`, so the result can belong to earlier bytes,
+    /// and more results for them can still be waiting when this returns. They
+    /// come out of the following calls, or of [`Self::next_raw_packet`] with an
+    /// empty slice.
     pub fn push_byte_raw(
         &mut self,
         byte: u8,
     ) -> Result<Option<RawCrsfPacket<'_>>, CrsfStreamError> {
-        Ok(self.push_byte_frame(byte)?.map(|frame_len| RawCrsfPacket {
+        let frame_len = if self.rescan_start == self.rescan_end {
+            self.push_byte_frame(byte)?
+        } else {
+            self.queue_rescan(byte)?;
+            self.drain_rescan().transpose()?
+        };
+        Ok(frame_len.map(|frame_len| RawCrsfPacket {
             bytes: &self.buffer[..frame_len],
         }))
     }
@@ -123,6 +148,17 @@ impl CrsfParser {
         &'p mut self,
         input: &mut &'i [u8],
     ) -> Option<Result<RawCrsfPacket<'p>, CrsfStreamError>> {
+        // Bytes of a failed split candidate come before `input`.
+        match self.drain_rescan() {
+            Some(Ok(frame_len)) => {
+                return Some(Ok(RawCrsfPacket {
+                    bytes: &self.buffer[..frame_len],
+                }));
+            }
+            Some(Err(error)) => return Some(Err(error)),
+            None => (),
+        }
+
         while !input.is_empty() {
             if self.state == State::AwaitingSync {
                 let chunk = *input;
@@ -159,11 +195,9 @@ impl CrsfParser {
                 let calculated_crc = CRC8_DVB_S2.checksum(&chunk[2..frame_len - 1]);
                 let packet_crc = chunk[frame_len - 1];
                 if calculated_crc != packet_crc {
-                    *input = if Self::is_valid_sync(packet_crc) {
-                        &chunk[frame_len - 1..]
-                    } else {
-                        &chunk[frame_len..]
-                    };
+                    // Resume right after the start byte: the real start byte of
+                    // a frame can be inside this failed candidate.
+                    *input = &chunk[1..];
                     return Some(Err(CrsfStreamError::InvalidCrc {
                         calculated_crc,
                         packet_crc,
@@ -205,7 +239,7 @@ impl CrsfParser {
                     // If `byte` is a valid sync candidate, keep it in `input`
                     // so a contiguous frame starting at `byte` remains zero-copy.
                     if self.state == State::AwaitingLength {
-                        self.reset();
+                        self.drop_candidate();
                         *input = chunk;
                     }
                     return Some(Err(error));
@@ -215,7 +249,16 @@ impl CrsfParser {
         None
     }
 
+    /// Drops any partial frame and any bytes waiting to be scanned again.
     pub fn reset(&mut self) {
+        self.drop_candidate();
+        self.rescan_start = 0;
+        self.rescan_end = 0;
+    }
+
+    /// Drops the frame being assembled, keeping bytes waiting to be scanned
+    /// again: they come after it in the stream.
+    fn drop_candidate(&mut self) {
         self.len = 0;
         self.state = State::AwaitingSync;
     }
@@ -234,7 +277,7 @@ impl CrsfParser {
             State::AwaitingLength => {
                 let frame_len = usize::from(byte) + 2;
                 if !Self::is_valid_frame_len(frame_len) {
-                    self.reset();
+                    self.drop_candidate();
                     // A false sync can make this "length" byte invalid. Re-evaluate
                     // the same byte as a new sync candidate so it is not lost.
                     self.try_start_frame(byte);
@@ -257,9 +300,7 @@ impl CrsfParser {
                 let calculated_crc = CRC8_DVB_S2.checksum(&self.buffer[2..self.len]);
                 let packet_crc = byte;
                 if calculated_crc != packet_crc {
-                    self.reset();
-                    // Preserve this byte as potential sync for the next frame.
-                    self.try_start_frame(byte);
+                    self.rescan_after_start(byte);
                     return Err(CrsfStreamError::InvalidCrc {
                         calculated_crc,
                         packet_crc,
@@ -267,10 +308,66 @@ impl CrsfParser {
                 }
                 self.buffer[self.len] = byte;
                 let frame_len = self.len + 1;
-                self.reset();
+                self.drop_candidate();
                 Ok(Some(frame_len))
             }
         }
+    }
+
+    /// Puts the bytes after the failed candidate's start byte, then its CRC
+    /// byte, in front of any bytes still waiting to be scanned again, and
+    /// drops the candidate.
+    fn rescan_after_start(&mut self, crc: u8) {
+        let body = 1..self.len;
+        let waiting = self.rescan_start..self.rescan_end;
+        let front = body.len() + 1;
+        // Fits: the waiting bytes plus a candidate never exceed one maximum
+        // frame, and the start byte dropped here makes room for the CRC byte.
+        self.rescan.copy_within(waiting.clone(), front);
+        self.rescan[..body.len()].copy_from_slice(&self.buffer[body]);
+        self.rescan[front - 1] = crc;
+        self.rescan_start = 0;
+        self.rescan_end = front + waiting.len();
+        self.drop_candidate();
+    }
+
+    /// Appends a new byte behind the bytes still waiting to be scanned again.
+    fn queue_rescan(&mut self, byte: u8) -> Result<(), CrsfStreamError> {
+        if self.rescan_end == self.rescan.len() {
+            self.rescan
+                .copy_within(self.rescan_start..self.rescan_end, 0);
+            self.rescan_end -= self.rescan_start;
+            self.rescan_start = 0;
+        }
+        // Never full after compacting: a call that queues a byte either ends on
+        // an event, which takes at least one byte away, or leaves only a
+        // candidate shorter than a frame.
+        let slot = self
+            .rescan
+            .get_mut(self.rescan_end)
+            .ok_or(CrsfStreamError::InputBufferTooSmall)?;
+        *slot = byte;
+        self.rescan_end += 1;
+        Ok(())
+    }
+
+    /// Feeds the waiting bytes to the byte state machine until one completes a
+    /// frame (its length is returned) or an error; `None` once all are taken.
+    fn drain_rescan(&mut self) -> Option<Result<usize, CrsfStreamError>> {
+        while self.rescan_start < self.rescan_end {
+            let byte = self.rescan[self.rescan_start];
+            self.rescan_start += 1;
+            if self.rescan_start == self.rescan_end {
+                self.rescan_start = 0;
+                self.rescan_end = 0;
+            }
+            match self.push_byte_frame(byte) {
+                Ok(Some(frame_len)) => return Some(Ok(frame_len)),
+                Ok(None) => (),
+                Err(error) => return Some(Err(error)),
+            }
+        }
+        None
     }
 
     fn is_valid_sync(byte: u8) -> bool {

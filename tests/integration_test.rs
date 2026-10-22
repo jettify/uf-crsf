@@ -498,10 +498,14 @@ fn test_address_bytes_in_payload_do_not_prevent_recovery() {
     let chunk1 = &frame[..frame.len() / 2];
     let chunk2 = &[24, 22, 33, 5, 95, 43, 90, 209, 10, 78];
     let chunk3 = &frame;
+    // Rescanning the bytes of `chunk1`'s failed candidate finds `0x90` (Esc1)
+    // followed by a valid length, a candidate that covers `chunk3`; the frame
+    // in `chunk3` comes out once more input makes that candidate fail.
+    let chunk4 = &frame;
 
     let mut parser = CrsfParser::new();
     let mut ok_count = 0usize;
-    for chunk in [chunk1, chunk2, chunk3] {
+    for chunk in [chunk1, chunk2, chunk3, chunk4] {
         for item in parser.iter_packets(chunk) {
             if item.is_ok() {
                 ok_count += 1;
@@ -509,7 +513,7 @@ fn test_address_bytes_in_payload_do_not_prevent_recovery() {
         }
     }
 
-    assert!(ok_count >= 1);
+    assert_eq!(ok_count, 2);
 }
 
 #[test]
@@ -537,4 +541,48 @@ fn test_chunk_boundary_all_split_points() {
 
         assert_eq!(count, 3, "failed split at index {split}");
     }
+}
+
+#[test]
+fn test_issue_95_repro_loses_only_the_partial_frame() {
+    // https://github.com/jettify/uf-crsf/issues/95: two RC frames, the tail of
+    // a third (its start byte lost), then whole frames. Only the partial frame
+    // may be lost; the frame after it starts right where it ends.
+    let chunks: [&[u8]; 7] = [
+        &[
+            238, 24, 22, 34, 5, 95, 43, 90, 209, 138, 77, 181, 2, 124, 176, 104, 5, 248, 192, 7,
+            62, 240, 129, 15, 124, 208,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 138, 77, 181, 2, 124, 210, 104, 5, 248, 192, 7,
+            62, 240, 129, 15, 124, 246,
+        ],
+        &[
+            24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 219, 104, 5, 248, 192, 7, 62, 240,
+            129, 15, 124,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 236, 104, 5, 248, 192, 7, 62,
+            240, 129, 15, 124, 136,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 36, 105, 5, 248, 192, 7, 62,
+            240, 129, 15, 124, 89,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 36, 105, 5, 248, 192, 7, 62,
+            240, 129, 15, 124, 89,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 36, 105, 5, 248, 192, 7, 62,
+            240, 129, 15, 124, 89,
+        ],
+    ];
+
+    let mut parser = CrsfParser::new();
+    let frames: Vec<usize> = chunks
+        .iter()
+        .map(|chunk| parser.iter_packets(chunk).filter(Result::is_ok).count())
+        .collect();
+    assert_eq!(frames, [1, 1, 0, 1, 1, 1, 1]);
 }

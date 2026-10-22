@@ -149,6 +149,13 @@ fn test_resynchronized_frames_stay_zero_copy() {
         parser.next_raw_packet(&mut cursor),
         Some(Err(CrsfStreamError::InvalidCrc { .. }))
     ));
+    // The failed candidate's body is scanned again, one byte at a time.
+    for &byte in &bad_crc[1..bad_crc.len() - 1] {
+        assert_eq!(
+            parser.next_raw_packet(&mut cursor).unwrap().unwrap_err(),
+            CrsfStreamError::InvalidSync(byte)
+        );
+    }
     let second_pkt = parser.next_raw_packet(&mut cursor).unwrap().unwrap();
     assert_eq!(
         second_pkt.as_slice().as_ptr(),
@@ -227,7 +234,9 @@ fn test_arbitrary_streams_match_byte_parser() {
         }
         input.extend_from_slice(&frame(14));
         let mut expected = Vec::new();
-        push_bytes(&mut CrsfParser::new(), &input, &mut expected);
+        let mut baseline = CrsfParser::new();
+        push_bytes(&mut baseline, &input, &mut expected);
+        push_chunk(&mut baseline, &[], &mut expected);
         for size in [1, 2, 3, 7, 63, 64, input.len()] {
             let mut parser = CrsfParser::new();
             let mut events = Vec::new();
@@ -320,4 +329,92 @@ fn test_owned_packets_can_be_kept_while_iteration_continues() {
     assert_eq!(first, second);
     assert!(packets.next().is_none());
     assert!(packets.remaining().is_empty());
+}
+
+/// An RC channels frame as EdgeTX sends it (sticks centred, AUX low). Its last
+/// bytes `80 0f` read as a start byte (`TbsCorePnpPro`) and a valid length.
+const EDGETX_RC: [u8; 26] = [
+    0xC8, 0x18, 0x16, 0xE0, 0x6B, 0x1E, 0x83, 0xC0, 0xD7, 0x8A, 0x56, 0xB4, 0xA2, 0x15, 0xAD, 0x68,
+    0x45, 0x2B, 0x5A, 0xD1, 0x8A, 0x56, 0x80, 0x0F, 0x7C, 0xA7,
+];
+
+fn frames_in(events: &[Event]) -> usize {
+    events
+        .iter()
+        .filter(|event| matches!(event, Ok(frame) if frame == &EDGETX_RC))
+        .count()
+}
+
+fn events_by_every_api(stream: &[u8]) -> [(&'static str, Vec<Event>); 3] {
+    let mut bytes = Vec::new();
+    let mut parser = CrsfParser::new();
+    push_bytes(&mut parser, stream, &mut bytes);
+    push_chunk(&mut parser, &[], &mut bytes);
+
+    let mut frame_chunks = Vec::new();
+    let mut parser = CrsfParser::new();
+    for chunk in stream.chunks(EDGETX_RC.len()) {
+        push_chunk(&mut parser, chunk, &mut frame_chunks);
+    }
+
+    let mut one_chunk = Vec::new();
+    push_chunk(&mut CrsfParser::new(), stream, &mut one_chunk);
+    [
+        ("bytes", bytes),
+        ("frame-sized chunks", frame_chunks),
+        ("one chunk", one_chunk),
+    ]
+}
+
+#[test]
+fn test_a_frame_cut_short_does_not_lock_out_the_frames_after_it() {
+    // A link that drops mid-frame leaves a partial candidate. Skipping a failed
+    // candidate's bytes made the parser take the `80 0f` near the end of every
+    // following frame as a start, which swallowed the real start byte each time.
+    for cut in 1..EDGETX_RC.len() {
+        let mut stream = EDGETX_RC[..cut].to_vec();
+        for _ in 0..8 {
+            stream.extend_from_slice(&EDGETX_RC);
+        }
+        for (api, events) in events_by_every_api(&stream) {
+            assert_eq!(frames_in(&events), 8, "cut={cut}, api={api}");
+        }
+    }
+}
+
+#[test]
+fn test_a_stream_joined_mid_frame_finds_the_next_frame() {
+    for offset in 1..EDGETX_RC.len() {
+        let mut stream = EDGETX_RC[offset..].to_vec();
+        for _ in 0..8 {
+            stream.extend_from_slice(&EDGETX_RC);
+        }
+        for (api, events) in events_by_every_api(&stream) {
+            assert_eq!(frames_in(&events), 8, "offset={offset}, api={api}");
+        }
+    }
+}
+
+#[test]
+fn test_a_frame_inside_a_failed_candidate_is_found() {
+    let inner = frame(14);
+    let mut stream = vec![0xC8, 40]; // False start whose length covers `inner`.
+    stream.extend_from_slice(&inner);
+    stream.resize(42, 0x35); // Filler up to the false candidate's CRC position.
+    stream.push(0x00); // Its CRC, wrong.
+
+    let mut expected = Vec::new();
+    let mut baseline = CrsfParser::new();
+    push_bytes(&mut baseline, &stream, &mut expected);
+    push_chunk(&mut baseline, &[], &mut expected);
+    assert!(expected.contains(&Ok(inner.clone())), "{expected:?}");
+
+    for size in 1..=stream.len() {
+        let mut parser = CrsfParser::new();
+        let mut events = Vec::new();
+        for chunk in stream.chunks(size) {
+            push_chunk(&mut parser, chunk, &mut events);
+        }
+        assert_eq!(events, expected, "chunk size={size}");
+    }
 }
