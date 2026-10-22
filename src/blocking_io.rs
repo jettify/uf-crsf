@@ -37,6 +37,12 @@ impl<R: Read> BlockingCrsfReader<R> {
                     Err(e) => return Err(e),
                 }
             }
+            // Bytes scanned again after a failed candidate can still hold a
+            // frame; hand it out before waiting for more input.
+            let mut no_input: &[u8] = &[];
+            if let Some(result) = self.parser.next_packet(&mut no_input) {
+                return result;
+            }
             let bytes_read = self
                 .reader
                 .read(&mut temp_read_buf)
