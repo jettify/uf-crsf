@@ -420,7 +420,11 @@ mod tests {
         // insert addresses into short payloads nor duplicate extended headers.
         assert_eq!(&buffer[3..len - 1], payload, "{:?}", T::PACKET_TYPE);
         let mut parser = crate::CrsfParser::new();
-        let parsed = parser.iter_packets(&buffer[..len]).next().unwrap().unwrap();
+        let parsed = parser
+            .iter_packets(&mut &buffer[..len])
+            .next()
+            .unwrap()
+            .unwrap();
         assert!(!matches!(parsed, Packet::NotImlemented(_, _)));
     }
 

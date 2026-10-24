@@ -24,13 +24,9 @@ fn owned(packet: RawCrsfPacket<'_>) -> Vec<u8> {
     packet.as_slice().to_vec()
 }
 
-fn push_bytes(parser: &mut CrsfParser, input: &[u8], events: &mut Vec<Event>) {
-    for &byte in input {
-        match parser.push_byte_raw(byte) {
-            Ok(Some(packet)) => events.push(Ok(owned(packet))),
-            Ok(None) => (),
-            Err(error) => events.push(Err(error)),
-        }
+fn push_single_byte_slices(parser: &mut CrsfParser, input: &[u8], events: &mut Vec<Event>) {
+    for byte in input {
+        push_chunk(parser, core::slice::from_ref(byte), events);
     }
 }
 
@@ -43,7 +39,7 @@ fn push_chunk(parser: &mut CrsfParser, mut input: &[u8], events: &mut Vec<Event>
 }
 
 #[test]
-fn test_matches_byte_parser_across_splits_and_api_switches() {
+fn test_matches_single_byte_slices_across_splits_and_chunk_sizes() {
     let min = frame(4);
     let max = frame(64);
     let mut bad_crc = frame(9);
@@ -60,21 +56,21 @@ fn test_matches_byte_parser_across_splits_and_api_switches() {
 
     let mut expected = Vec::new();
     let mut baseline = CrsfParser::new();
-    push_bytes(&mut baseline, &stream, &mut expected);
-    push_bytes(&mut baseline, &max[31..], &mut expected);
+    push_single_byte_slices(&mut baseline, &stream, &mut expected);
+    push_single_byte_slices(&mut baseline, &max[31..], &mut expected);
 
     for split in 0..=stream.len() {
         for mode in 0..3 {
             let mut parser = CrsfParser::new();
             let mut events = Vec::new();
             if mode == 1 {
-                push_bytes(&mut parser, &stream[..split], &mut events);
+                push_single_byte_slices(&mut parser, &stream[..split], &mut events);
             } else {
                 push_chunk(&mut parser, &stream[..split], &mut events);
             }
             push_chunk(&mut parser, &[], &mut events);
             if mode == 2 {
-                push_bytes(&mut parser, &stream[split..], &mut events);
+                push_single_byte_slices(&mut parser, &stream[split..], &mut events);
             } else {
                 push_chunk(&mut parser, &stream[split..], &mut events);
             }
@@ -215,7 +211,7 @@ fn test_reset_discards_spillover_and_partial_chunks_consume_their_input() {
 }
 
 #[test]
-fn test_arbitrary_streams_match_byte_parser() {
+fn test_arbitrary_streams_match_single_byte_slices() {
     let mut seed = 0x12345678u32;
     for _ in 0..32 {
         let mut input = Vec::new();
@@ -227,7 +223,7 @@ fn test_arbitrary_streams_match_byte_parser() {
         }
         input.extend_from_slice(&frame(14));
         let mut expected = Vec::new();
-        push_bytes(&mut CrsfParser::new(), &input, &mut expected);
+        push_single_byte_slices(&mut CrsfParser::new(), &input, &mut expected);
         for size in [1, 2, 3, 7, 63, 64, input.len()] {
             let mut parser = CrsfParser::new();
             let mut events = Vec::new();
@@ -240,7 +236,7 @@ fn test_arbitrary_streams_match_byte_parser() {
 }
 
 #[test]
-fn test_typed_iteration_matches_bytes_and_raw_decoding_across_every_split() {
+fn test_typed_iteration_matches_single_byte_slices_and_cursor_across_every_split() {
     let valid = [0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252];
     let mut bad_crc = valid;
     bad_crc[13] ^= 1;
@@ -257,12 +253,8 @@ fn test_typed_iteration_matches_bytes_and_raw_decoding_across_every_split() {
 
     let mut baseline = CrsfParser::new();
     let mut expected = Vec::new();
-    for &byte in input.iter().chain(&valid[7..]) {
-        match baseline.push_byte(byte) {
-            Ok(Some(packet)) => expected.push(Ok(packet)),
-            Ok(None) => (),
-            Err(error) => expected.push(Err(error)),
-        }
+    for byte in input.iter().chain(&valid[7..]) {
+        expected.extend(baseline.iter_packets(&mut core::slice::from_ref(byte)));
     }
     assert!(expected
         .iter()
@@ -273,14 +265,10 @@ fn test_typed_iteration_matches_bytes_and_raw_decoding_across_every_split() {
             let mut parser = CrsfParser::new();
             let mut actual = Vec::new();
             match mode {
-                0 => actual.extend(parser.iter_packets(&input[..split])),
+                0 => actual.extend(parser.iter_packets(&mut &input[..split])),
                 1 => {
-                    for &byte in &input[..split] {
-                        match parser.push_byte(byte) {
-                            Ok(Some(packet)) => actual.push(Ok(packet)),
-                            Ok(None) => (),
-                            Err(error) => actual.push(Err(error)),
-                        }
+                    for byte in &input[..split] {
+                        actual.extend(parser.iter_packets(&mut core::slice::from_ref(byte)));
                     }
                 }
                 _ => {
@@ -290,9 +278,9 @@ fn test_typed_iteration_matches_bytes_and_raw_decoding_across_every_split() {
                     }
                 }
             }
-            actual.extend(parser.iter_packets(&[]));
-            actual.extend(parser.iter_packets(&input[split..]));
-            actual.extend(parser.iter_packets(&valid[7..]));
+            actual.extend(parser.iter_packets(&mut &(&[])[..]));
+            actual.extend(parser.iter_packets(&mut &input[split..]));
+            actual.extend(parser.iter_packets(&mut &valid[7..]));
             assert_eq!(actual, expected, "split={split}, mode={mode}");
         }
     }
@@ -301,9 +289,9 @@ fn test_typed_iteration_matches_bytes_and_raw_decoding_across_every_split() {
         let mut parser = CrsfParser::new();
         let mut actual = Vec::new();
         for chunk in input.chunks(size) {
-            actual.extend(parser.iter_packets(chunk));
+            actual.extend(parser.iter_packets(&mut &chunk[..]));
         }
-        actual.extend(parser.iter_packets(&valid[7..]));
+        actual.extend(parser.iter_packets(&mut &valid[7..]));
         assert_eq!(actual, expected, "chunk size={size}");
     }
 }
@@ -313,11 +301,78 @@ fn test_owned_packets_can_be_kept_while_iteration_continues() {
     let valid = [0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252];
     let input = [valid, valid].concat();
     let mut parser = CrsfParser::new();
-    let mut packets = parser.iter_packets(&input);
+    let mut cursor = input.as_slice();
+    let mut packets = parser.iter_packets(&mut cursor);
     let first = packets.next().unwrap().unwrap();
     assert_eq!(packets.remaining(), valid);
     let second = packets.next().unwrap().unwrap();
     assert_eq!(first, second);
     assert!(packets.next().is_none());
     assert!(packets.remaining().is_empty());
+}
+
+#[test]
+fn typed_iterator_early_exit_preserves_cursor() {
+    let valid = [0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252];
+    let bytes = [valid.as_slice(), &valid[..7]].concat();
+    for mode in 0..2 {
+        let mut parser = CrsfParser::new();
+        let mut input = bytes.as_slice();
+        if mode == 0 {
+            for result in parser.iter_packets(&mut input) {
+                if matches!(result.unwrap(), uf_crsf::Packet::LinkStatistics(_)) {
+                    break;
+                }
+            }
+        } else {
+            assert_eq!(parser.iter_packets(&mut input).take(1).count(), 1);
+        }
+        assert_eq!(input, &valid[..7]);
+        // No eager buffering on drop: a full new frame still parses normally.
+        assert!(parser.next_packet(&mut valid.as_slice()).unwrap().is_ok());
+    }
+
+    fn until_error(parser: &mut CrsfParser, input: &mut &[u8]) -> Result<(), CrsfStreamError> {
+        for result in parser.iter_packets(input) {
+            result?;
+        }
+        Ok(())
+    }
+    let bytes = [&[0xFF][..], &valid].concat();
+    let mut input = bytes.as_slice();
+    let mut parser = CrsfParser::new();
+    assert_eq!(
+        until_error(&mut parser, &mut input),
+        Err(CrsfStreamError::InvalidSync(0xFF))
+    );
+    assert_eq!(input, valid);
+    assert!(parser.iter_packets(&mut input).next().unwrap().is_ok());
+    assert!(input.is_empty());
+}
+
+#[test]
+fn raw_errors_have_explicit_expected_order_across_chunks() {
+    let mut bad_crc = frame(4);
+    bad_crc[3] ^= 1;
+    let valid = frame(4);
+    let bytes = [&[0xFF, 0xC8, 0][..], &bad_crc, &valid].concat();
+    let expected = vec![
+        Err(CrsfStreamError::InvalidSync(0xFF)),
+        Err(CrsfStreamError::InvalidPacketLength(0)),
+        // Broadcast address 0 is reused as sync before the following 0xC8.
+        Err(CrsfStreamError::InvalidPacketLength(0xC8)),
+        Err(CrsfStreamError::InvalidCrc {
+            calculated_crc: valid[3],
+            packet_crc: bad_crc[3],
+        }),
+        Ok(valid),
+    ];
+    for size in 1..=bytes.len() {
+        let mut parser = CrsfParser::new();
+        let mut actual = Vec::new();
+        for chunk in bytes.chunks(size) {
+            push_chunk(&mut parser, chunk, &mut actual);
+        }
+        assert_eq!(actual, expected, "chunk size={size}");
+    }
 }

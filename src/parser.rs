@@ -7,7 +7,7 @@ use num_enum::TryFromPrimitive;
 
 #[derive(Debug, Default, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum State {
+enum State {
     #[default]
     AwaitingSync,
     AwaitingLength,
@@ -35,36 +35,41 @@ impl CrsfParser {
         }
     }
 
-    pub fn push_byte_raw(
-        &mut self,
-        byte: u8,
-    ) -> Result<Option<RawCrsfPacket<'_>>, CrsfStreamError> {
-        Ok(self.push_byte_frame(byte)?.map(|frame_len| RawCrsfPacket {
-            bytes: &self.buffer[..frame_len],
-        }))
-    }
-
-    pub fn push_byte(&mut self, byte: u8) -> Result<Option<Packet>, CrsfStreamError> {
-        match self.push_byte_raw(byte) {
-            Ok(Some(raw_packet)) => Packet::parse(&raw_packet)
-                .map(Some)
-                .map_err(CrsfStreamError::ParsingError),
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
-        }
-    }
-
     /// Iterates over owned, decoded packets from an input slice.
     ///
     /// Uses [`Self::next_raw_packet`] to avoid buffering contiguous frames,
     /// then decodes each frame into an owned [`Packet`]. Exhausting the iterator
     /// preserves partial frames for later chunks. To stop early without losing
-    /// unread bytes, inspect [`PacketIterator::remaining`] or use
-    /// [`Self::next_packet`] directly with a mutable slice cursor.
-    pub fn iter_packets<'a, 'b>(&'a mut self, input: &'b [u8]) -> PacketIterator<'a, 'b> {
+    /// unread bytes, keep the caller-owned slice cursor and resume it later.
+    /// Dropping the iterator does not consume or buffer any additional input.
+    /// Errors are yielded as items; continue iterating to resume parsing.
+    ///
+    /// ```
+    /// use uf_crsf::CrsfParser;
+    ///
+    /// let mut parser = CrsfParser::new();
+    /// let bytes = [0xC8, 2, 0, 0, 0xC8, 2, 0, 0];
+    /// let mut input = bytes.as_slice();
+    /// let _ = parser.iter_packets(&mut input).next();
+    /// assert_eq!(input, &bytes[4..]);
+    ///
+    /// // Single-byte sources use the same API. Drain errors as well as packets.
+    /// parser.reset();
+    /// for byte in &bytes {
+    ///     let mut input = core::slice::from_ref(byte);
+    ///     for result in parser.iter_packets(&mut input) {
+    ///         let _ = result;
+    ///     }
+    ///     assert!(input.is_empty());
+    /// }
+    /// ```
+    pub fn iter_packets<'p, 'c, 'i>(
+        &'p mut self,
+        input: &'c mut &'i [u8],
+    ) -> PacketIterator<'p, 'c, 'i> {
         PacketIterator {
             parser: self,
-            remaining: input,
+            input,
         }
     }
 
@@ -221,7 +226,7 @@ impl CrsfParser {
     }
 
     // Return the completed frame's length separately from its borrow so both
-    // byte-by-byte and slice-cursor APIs can advance the same state machine.
+    // slice fast path and split-frame handling can share the state machine.
     fn push_byte_frame(&mut self, byte: u8) -> Result<Option<usize>, CrsfStreamError> {
         match self.state {
             State::AwaitingSync => {
@@ -381,23 +386,23 @@ impl AsRef<[u8]> for RawCrsfPacket<'_> {
     }
 }
 
-pub struct PacketIterator<'a, 'b> {
-    parser: &'a mut CrsfParser,
-    remaining: &'b [u8],
+pub struct PacketIterator<'p, 'c, 'i> {
+    parser: &'p mut CrsfParser,
+    input: &'c mut &'i [u8],
 }
 
-impl<'b> PacketIterator<'_, 'b> {
+impl<'i> PacketIterator<'_, '_, 'i> {
     /// Returns the unread input suffix with the original input lifetime.
-    pub fn remaining(&self) -> &'b [u8] {
-        self.remaining
+    pub fn remaining(&self) -> &'i [u8] {
+        self.input
     }
 }
 
-impl Iterator for PacketIterator<'_, '_> {
+impl Iterator for PacketIterator<'_, '_, '_> {
     type Item = Result<Packet, CrsfStreamError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.parser.next_packet(&mut self.remaining)
+        self.parser.next_packet(self.input)
     }
 }
 
@@ -418,7 +423,11 @@ mod tests {
         let input = [0xC8, 12, 0x14, 16, 19, 99, 151, 1, 2, 3, 8, 88, 148, 252];
         let mut parser = CrsfParser::new();
         parser.buffer.fill(0xA5);
-        let packet = parser.iter_packets(&input).next().unwrap().unwrap();
+        let packet = parser
+            .iter_packets(&mut &input[..])
+            .next()
+            .unwrap()
+            .unwrap();
         assert!(matches!(packet, Packet::LinkStatistics(_)));
         assert_eq!(parser.buffer, [0xA5; constants::CRSF_MAX_PACKET_SIZE]);
         assert_eq!(parser.state, State::AwaitingSync);
@@ -450,11 +459,13 @@ mod tests {
         let mut parser = CrsfParser::new();
 
         for b in &raw_bytes[0..raw_bytes.len() - 1] {
-            let result = parser.push_byte_raw(*b);
+            let result = parser
+                .next_raw_packet(&mut core::slice::from_ref(b))
+                .transpose();
             assert!(matches!(result, Ok(None)));
         }
 
-        let raw_packet_result = parser.push_byte_raw(raw_bytes[13]);
+        let raw_packet_result = parser.next_raw_packet(&mut &raw_bytes[13..]).transpose();
         let raw_packet = raw_packet_result
             .expect("Failed to get raw packet result")
             .expect("Expected a complete raw packet, but got None");
@@ -484,7 +495,7 @@ mod tests {
         ];
         let mut parser = CrsfParser::new();
         let results: std::vec::Vec<Result<Packet, CrsfStreamError>> =
-            parser.iter_packets(&raw_bytes).collect();
+            parser.iter_packets(&mut &raw_bytes[..]).collect();
 
         let expected = [
             992, 992, 352, 992, 352, 352, 352, 352, 352, 352, 992, 992, 0, 0, 0, 0,
@@ -505,13 +516,13 @@ mod tests {
             uplink_rssi_1: 16,
             uplink_rssi_2: 19,
             uplink_link_quality: 99,
-            uplink_snr: 51 as i8,
+            uplink_snr: 51,
             active_antenna: 1,
             rf_mode: 2,
             uplink_tx_power: 3,
             downlink_rssi: 8,
             downlink_link_quality: 88,
-            downlink_snr: 48 as i8,
+            downlink_snr: 48,
         };
 
         // Serialize it into a buffer
@@ -522,21 +533,12 @@ mod tests {
             &link_stats_packet,
         )
         .unwrap();
-        let raw_bytes = &buffer[..bytes_written];
+        let mut raw_bytes = &buffer[..bytes_written];
 
         let mut parser = CrsfParser::new();
 
         // 1. Parse raw bytes to get a RawCrsfPacket
-        let mut raw_packet_result = Ok(None);
-        for &byte in raw_bytes {
-            raw_packet_result = parser.push_byte_raw(byte);
-            if let Ok(Some(_)) = &raw_packet_result {
-                break;
-            }
-        }
-        let raw_packet = raw_packet_result
-            .expect("Failed to get raw packet result")
-            .expect("Expected a complete raw packet, but got None");
+        let raw_packet = parser.next_raw_packet(&mut raw_bytes).unwrap().unwrap();
 
         let packet = Packet::parse(&raw_packet).expect("Failed to parse raw packet into a Packet");
 

@@ -80,3 +80,93 @@ fn test_read_packet_blocking_with_garbage() {
     // We expect an InvalidSync error because the first byte is not a valid sync byte.
     assert!(matches!(result, Err(CrsfStreamError::InvalidSync(_))));
 }
+
+mod common;
+
+#[test]
+fn buffered_results_resume_without_transport_reads() {
+    use common::{ChunkReader, VALID_FRAME};
+    use std::{cell::Cell, rc::Rc};
+    let mut invalid_crc = VALID_FRAME;
+    invalid_crc[13] ^= 1;
+    let invalid_payload = [
+        0xC8,
+        2,
+        0x14,
+        crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2).checksum(&[0x14]),
+    ];
+    let bytes = [
+        &[0xFF][..],
+        &VALID_FRAME,
+        &invalid_crc,
+        &invalid_payload,
+        &VALID_FRAME,
+    ]
+    .concat();
+    let reads = Rc::new(Cell::new(0));
+    let mut reader = BlockingCrsfReader::new(ChunkReader {
+        input: &bytes,
+        chunk_size: 64,
+        reads: reads.clone(),
+        fail_on: None,
+    });
+    assert_eq!(
+        reader.read_packet(),
+        Err(CrsfStreamError::InvalidSync(0xFF))
+    );
+    assert!(matches!(
+        reader.read_packet(),
+        Ok(Packet::LinkStatistics(_))
+    ));
+    assert!(matches!(
+        reader.read_packet(),
+        Err(CrsfStreamError::InvalidCrc { .. })
+    ));
+    assert!(matches!(
+        reader.read_packet(),
+        Err(CrsfStreamError::ParsingError(_))
+    ));
+    assert!(matches!(
+        reader.read_packet(),
+        Ok(Packet::LinkStatistics(_))
+    ));
+    assert_eq!(reads.get(), 1);
+    assert_eq!(reader.read_packet(), Err(CrsfStreamError::UnexpectedEof));
+    assert_eq!(reads.get(), 2);
+}
+
+#[test]
+fn split_reads_and_transport_error_preserve_partial_frames() {
+    use common::{ChunkReader, VALID_FRAME};
+    use std::{cell::Cell, rc::Rc};
+    let bytes = [VALID_FRAME, VALID_FRAME].concat();
+    for chunk_size in [1, 2, 7, 64] {
+        let mut reader = BlockingCrsfReader::new(ChunkReader {
+            input: &bytes,
+            chunk_size,
+            reads: Rc::new(Cell::new(0)),
+            fail_on: None,
+        });
+        for _ in 0..2 {
+            assert!(matches!(
+                reader.read_packet(),
+                Ok(Packet::LinkStatistics(_))
+            ));
+        }
+        assert_eq!(reader.read_packet(), Err(CrsfStreamError::UnexpectedEof));
+    }
+    let mut reader = BlockingCrsfReader::new(ChunkReader {
+        input: &VALID_FRAME,
+        chunk_size: 7,
+        reads: Rc::new(Cell::new(0)),
+        fail_on: Some(2),
+    });
+    assert_eq!(
+        reader.read_packet(),
+        Err(CrsfStreamError::Io(embedded_io::ErrorKind::Other))
+    );
+    assert!(matches!(
+        reader.read_packet(),
+        Ok(Packet::LinkStatistics(_))
+    ));
+}

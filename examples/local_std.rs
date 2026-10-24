@@ -41,7 +41,7 @@ fn main() {
         .timeout(Duration::from_millis(10))
         .open()
         .unwrap_or_else(|e| {
-            eprintln!("Failed to open serial port '{}': {}", &path, e);
+            eprintln!("Failed to open serial port '{}': {}", path, e);
             exit(1);
         });
 
@@ -51,7 +51,8 @@ fn main() {
     loop {
         match port.read(buf.as_mut_slice()) {
             Ok(n) => {
-                for packet in parser.iter_packets(&buf[..n]) {
+                let mut input = &buf[..n];
+                for packet in parser.iter_packets(&mut input) {
                     println!("{:?}", packet);
                 }
             }

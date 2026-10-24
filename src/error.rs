@@ -22,7 +22,6 @@ pub enum CrsfStreamError {
     },
     UnexpectedPacketType(u8),
     ParsingError(CrsfParsingError),
-    InputBufferTooSmall,
     #[cfg(any(feature = "embedded_io_async", feature = "embedded_io"))]
     Io(ErrorKind),
     #[cfg(any(feature = "embedded_io_async", feature = "embedded_io"))]

@@ -70,7 +70,9 @@ fn check_fixture(command_id: u8, body: &[u8], payload: CommandPayload) {
         write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &expected).unwrap();
     assert_eq!(&buffer[..len], frame);
     assert_eq!(
-        CrsfParser::new().iter_packets(&frame).collect::<Vec<_>>(),
+        CrsfParser::new()
+            .iter_packets(&mut &frame[..])
+            .collect::<Vec<_>>(),
         vec![Ok(Packet::Commands(expected))]
     );
 }
@@ -248,7 +250,9 @@ fn wifi_spec_examples() {
             write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
         assert_eq!(&buffer[..len], frame);
         assert_eq!(
-            CrsfParser::new().iter_packets(&frame).collect::<Vec<_>>(),
+            CrsfParser::new()
+                .iter_packets(&mut &frame[..])
+                .collect::<Vec<_>>(),
             vec![Ok(Packet::Commands(packet))]
         );
     }
