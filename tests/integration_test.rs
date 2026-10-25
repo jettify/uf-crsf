@@ -92,6 +92,10 @@ fn test_maximum_mavlink_envelope_frame() {
         Some(Err(CrsfStreamError::InvalidPacketLength(63)))
     );
     assert_eq!(
+        parser.next_raw_packet(&mut &[][..]),
+        Some(Err(CrsfStreamError::InvalidSync(63)))
+    );
+    assert_eq!(
         parser.iter_packets(&mut &frame[..]).next(),
         Some(Ok(Packet::MavlinkEnvelope(packet)))
     );
@@ -521,7 +525,15 @@ fn test_address_bytes_in_payload_do_not_prevent_recovery() {
         }
     }
 
-    assert!(ok_count >= 1);
+    // Recovery encounters another plausible length inside the damaged payload.
+    // It must wait for that candidate's CRC rather than preempting a potentially
+    // valid frame. Further bytes let it reject that start and recover `frame`.
+    let padding = [0xFF; 64];
+    ok_count += parser
+        .iter_packets(&mut padding.as_slice())
+        .filter(Result::is_ok)
+        .count();
+    assert_eq!(ok_count, 1);
 }
 
 #[test]
@@ -548,5 +560,90 @@ fn test_chunk_boundary_all_split_points() {
         }
 
         assert_eq!(count, 3, "failed split at index {split}");
+    }
+}
+
+#[test]
+fn test_issue_95_repro_loses_only_the_partial_frame() {
+    // https://github.com/jettify/uf-crsf/issues/95: two RC frames, the tail of
+    // a third (its start byte lost), then whole frames. Only the partial frame
+    // may be lost; the frame after it starts right where it ends.
+    let chunks: [&[u8]; 7] = [
+        &[
+            238, 24, 22, 34, 5, 95, 43, 90, 209, 138, 77, 181, 2, 124, 176, 104, 5, 248, 192, 7,
+            62, 240, 129, 15, 124, 208,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 138, 77, 181, 2, 124, 210, 104, 5, 248, 192, 7,
+            62, 240, 129, 15, 124, 246,
+        ],
+        &[
+            24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 219, 104, 5, 248, 192, 7, 62, 240,
+            129, 15, 124,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 236, 104, 5, 248, 192, 7, 62,
+            240, 129, 15, 124, 136,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 36, 105, 5, 248, 192, 7, 62,
+            240, 129, 15, 124, 89,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 36, 105, 5, 248, 192, 7, 62,
+            240, 129, 15, 124, 89,
+        ],
+        &[
+            238, 24, 22, 33, 5, 95, 43, 90, 209, 10, 78, 181, 2, 124, 36, 105, 5, 248, 192, 7, 62,
+            240, 129, 15, 124, 89,
+        ],
+    ];
+
+    let mut parser = CrsfParser::new();
+    let frames: Vec<usize> = chunks
+        .into_iter()
+        .map(|mut chunk| {
+            parser
+                .iter_packets(&mut chunk)
+                .filter(Result::is_ok)
+                .count()
+        })
+        .collect();
+    assert_eq!(frames, [1, 1, 0, 1, 1, 1, 1]);
+
+    let expected: Vec<_> = chunks
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| *index != 2)
+        .map(|(_, chunk)| {
+            CrsfParser::new()
+                .next_packet(&mut &chunk[..])
+                .unwrap()
+                .unwrap()
+        })
+        .collect();
+    let stream = chunks.concat();
+    let mut baseline = CrsfParser::new();
+    let events: Vec<_> = baseline.iter_packets(&mut stream.as_slice()).collect();
+    assert_eq!(
+        events
+            .iter()
+            .filter_map(|event| event.as_ref().ok())
+            .collect::<Vec<_>>(),
+        expected.iter().collect::<Vec<_>>()
+    );
+    for split in 0..=stream.len() {
+        let mut parser = CrsfParser::new();
+        let mut actual: Vec<_> = parser.iter_packets(&mut &stream[..split]).collect();
+        actual.extend(parser.iter_packets(&mut &stream[split..]));
+        assert_eq!(actual, events, "split={split}");
+    }
+    for size in 1..=stream.len() {
+        let mut parser = CrsfParser::new();
+        let actual: Vec<_> = stream
+            .chunks(size)
+            .flat_map(|mut chunk| parser.iter_packets(&mut chunk).collect::<Vec<_>>())
+            .collect();
+        assert_eq!(actual, events, "chunk size={size}");
     }
 }

@@ -41,3 +41,14 @@ impl embedded_io_async::Read for ChunkReader<'_> {
         self.read_chunk(buffer)
     }
 }
+
+// A rejected 32-byte candidate containing two complete frames. With 16-byte
+// reads, both frames are retained when the outer CRC fails on the second read.
+pub fn recovery_stream() -> Vec<u8> {
+    let mut bytes = vec![0xC0, 30, 0xFF];
+    bytes.extend_from_slice(&VALID_FRAME);
+    bytes.extend_from_slice(&VALID_FRAME);
+    let crc = crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2).checksum(&bytes[2..]);
+    bytes.push(if crc == 0xFF { 0xFE } else { 0xFF });
+    bytes
+}

@@ -4,6 +4,13 @@ use uf_crsf::RawCrsfPacket;
 
 type Event = Result<Vec<u8>, CrsfStreamError>;
 
+// EdgeTX RC frame from PR #112. Its payload contains `80 0f`, which looks
+// like a valid sync byte followed by a plausible length.
+const EDGETX_RC: [u8; 26] = [
+    0xC8, 0x18, 0x16, 0xE0, 0x6B, 0x1E, 0x83, 0xC0, 0xD7, 0x8A, 0x56, 0xB4, 0xA2, 0x15, 0xAD, 0x68,
+    0x45, 0x2B, 0x5A, 0xD1, 0x8A, 0x56, 0x80, 0x0F, 0x7C, 0xA7,
+];
+
 fn frame(size: usize) -> Vec<u8> {
     let mut bytes = vec![0xC8, (size - 2) as u8, 0xFE];
     bytes.resize(size - 1, 0x35);
@@ -145,7 +152,12 @@ fn test_resynchronized_frames_stay_zero_copy() {
         parser.next_raw_packet(&mut cursor),
         Some(Err(CrsfStreamError::InvalidCrc { .. }))
     ));
-    let second_pkt = parser.next_raw_packet(&mut cursor).unwrap().unwrap();
+    let second_pkt = loop {
+        match parser.next_raw_packet(&mut cursor).unwrap() {
+            Ok(packet) => break packet,
+            Err(_) => continue,
+        }
+    };
     assert_eq!(
         second_pkt.as_slice().as_ptr(),
         input[second_offset..].as_ptr()
@@ -365,6 +377,9 @@ fn raw_errors_have_explicit_expected_order_across_chunks() {
             calculated_crc: valid[3],
             packet_crc: bad_crc[3],
         }),
+        Err(CrsfStreamError::InvalidSync(bad_crc[1])),
+        Err(CrsfStreamError::InvalidSync(bad_crc[2])),
+        Err(CrsfStreamError::InvalidSync(bad_crc[3])),
         Ok(valid),
     ];
     for size in 1..=bytes.len() {
@@ -374,5 +389,126 @@ fn raw_errors_have_explicit_expected_order_across_chunks() {
             push_chunk(&mut parser, chunk, &mut actual);
         }
         assert_eq!(actual, expected, "chunk size={size}");
+    }
+}
+
+#[test]
+fn retained_frames_are_drained_with_empty_input() {
+    let first = frame(4);
+    let second = frame(9);
+    let mut rejected = vec![0xC0, 15, 0xFF];
+    rejected.extend_from_slice(&first);
+    rejected.extend_from_slice(&second);
+    let crc = crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2).checksum(&rejected[2..]);
+    rejected.push(crc ^ 1);
+
+    let mut parser = CrsfParser::new();
+    assert!(parser.next_raw_packet(&mut &rejected[..3]).is_none());
+    let mut rest = &rejected[3..];
+    assert!(matches!(
+        parser.next_raw_packet(&mut rest),
+        Some(Err(CrsfStreamError::InvalidCrc { .. }))
+    ));
+    assert!(rest.is_empty());
+    let mut events = Vec::new();
+    push_chunk(&mut parser, &[], &mut events);
+    assert_eq!(
+        events
+            .into_iter()
+            .filter_map(Result::ok)
+            .collect::<Vec<_>>(),
+        [first, second]
+    );
+
+    // Reset must discard recovery bytes as well as ordinary partial frames.
+    assert!(parser.next_raw_packet(&mut &rejected[..3]).is_none());
+    assert!(parser
+        .next_raw_packet(&mut &rejected[3..])
+        .unwrap()
+        .is_err());
+    parser.reset();
+    assert!(parser.next_raw_packet(&mut &[][..]).is_none());
+    assert_eq!(
+        owned(
+            parser
+                .next_raw_packet(&mut &rejected[3..7])
+                .unwrap()
+                .unwrap()
+        ),
+        frame(4)
+    );
+}
+
+#[test]
+fn recovery_preserves_partial_header_and_compacts_for_maximum_frame() {
+    let valid = frame(64);
+    let mut rejected = vec![0xC0, 62];
+    rejected.resize(62, 0xFF);
+    rejected.extend_from_slice(&valid[..2]);
+    assert_ne!(
+        crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2).checksum(&rejected[2..63]),
+        rejected[63]
+    );
+    let stream = [rejected, valid[2..].to_vec()].concat();
+    for size in 1..=stream.len() {
+        let mut parser = CrsfParser::new();
+        let mut events = Vec::new();
+        for chunk in stream.chunks(size) {
+            push_chunk(&mut parser, chunk, &mut events);
+        }
+        assert_eq!(
+            events
+                .into_iter()
+                .filter_map(Result::ok)
+                .collect::<Vec<_>>(),
+            core::slice::from_ref(&valid),
+            "chunk size={size}"
+        );
+    }
+}
+
+#[test]
+fn valid_partial_frame_is_not_preempted_by_frame_inside_payload() {
+    let inner = frame(4);
+    let mut outer = frame(64);
+    outer[3..7].copy_from_slice(&inner);
+    outer[63] = crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2).checksum(&outer[2..63]);
+    let mut parser = CrsfParser::new();
+    assert!(parser.next_raw_packet(&mut &outer[..7]).is_none());
+    assert!(parser.next_raw_packet(&mut &[][..]).is_none());
+    let raw = parser.next_raw_packet(&mut &outer[7..]).unwrap().unwrap();
+    assert_eq!(raw.as_slice(), outer);
+    assert!(parser.next_raw_packet(&mut &[][..]).is_none());
+}
+
+fn assert_edgetx_recovery(prefix: &[u8]) {
+    let mut stream = prefix.to_vec();
+    for _ in 0..8 {
+        stream.extend_from_slice(&EDGETX_RC);
+    }
+    let expected = vec![EDGETX_RC.to_vec(); 8];
+
+    for size in 1..=stream.len() {
+        let mut parser = CrsfParser::new();
+        let mut events = Vec::new();
+        for chunk in stream.chunks(size) {
+            push_chunk(&mut parser, chunk, &mut events);
+        }
+        let frames: Vec<_> = events.into_iter().filter_map(Result::ok).collect();
+        assert_eq!(frames, expected, "prefix={prefix:?}, chunk size={size}");
+    }
+}
+
+#[test]
+fn test_a_frame_cut_short_does_not_lock_out_the_frames_after_it() {
+    for cut in 1..EDGETX_RC.len() {
+        assert_edgetx_recovery(&EDGETX_RC[..cut]);
+    }
+}
+
+#[test]
+fn test_a_stream_joined_mid_frame_finds_the_next_frame() {
+    for offset in 1..EDGETX_RC.len() {
+        assert_edgetx_recovery(&EDGETX_RC[offset..]);
     }
 }
