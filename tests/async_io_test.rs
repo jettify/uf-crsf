@@ -137,8 +137,10 @@ mod common;
 
 #[futures_test::test]
 async fn buffered_results_resume_without_transport_reads() {
-    use common::{ChunkReader, VALID_FRAME};
-    use std::{cell::Cell, rc::Rc};
+    use common::ChunkReader;
+    use common::VALID_FRAME;
+    use std::cell::Cell;
+    use std::rc::Rc;
     let mut invalid_crc = VALID_FRAME;
     invalid_crc[13] ^= 1;
     let invalid_payload = [
@@ -203,8 +205,10 @@ async fn buffered_results_resume_without_transport_reads() {
 
 #[futures_test::test]
 async fn split_reads_and_transport_error_preserve_partial_frames() {
-    use common::{ChunkReader, VALID_FRAME};
-    use std::{cell::Cell, rc::Rc};
+    use common::ChunkReader;
+    use common::VALID_FRAME;
+    use std::cell::Cell;
+    use std::rc::Rc;
     let bytes = [VALID_FRAME, VALID_FRAME].concat();
     for chunk_size in [1, 2, 7, 64] {
         let mut reader = AsyncCrsfReader::new(ChunkReader {
@@ -242,8 +246,10 @@ async fn split_reads_and_transport_error_preserve_partial_frames() {
 
 #[futures_test::test]
 async fn retained_frames_are_returned_before_reading_transport_again() {
-    use common::{recovery_stream, ChunkReader};
-    use std::{cell::Cell, rc::Rc};
+    use common::recovery_stream;
+    use common::ChunkReader;
+    use std::cell::Cell;
+    use std::rc::Rc;
     let bytes = recovery_stream();
     let reads = Rc::new(Cell::new(0));
     let mut reader = AsyncCrsfReader::new(ChunkReader {
