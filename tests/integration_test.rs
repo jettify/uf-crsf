@@ -31,14 +31,16 @@ fn test_mavlink_envelope_wire_layouts() {
             write_packet_to_buffer(&mut buffer, PacketAddress::FlightController, &packet).unwrap();
         assert_eq!(&buffer[..len], &frame);
         assert_eq!(
-            CrsfParser::new().iter_packets(&frame).collect::<Vec<_>>(),
+            CrsfParser::new()
+                .iter_packets(&mut &frame[..])
+                .collect::<Vec<_>>(),
             vec![Ok(Packet::MavlinkEnvelope(packet))]
         );
     }
     // Valid frame CRC, but current chunk 1 exceeds last chunk 0.
     let invalid = [0xc8, 4, 0xaa, 1, 0, 0xc4];
     assert_eq!(
-        CrsfParser::new().iter_packets(&invalid).next(),
+        CrsfParser::new().iter_packets(&mut &invalid[..]).next(),
         Some(Err(CrsfStreamError::ParsingError(
             uf_crsf::CrsfParsingError::InvalidPayload
         )))
@@ -61,10 +63,13 @@ fn test_maximum_mavlink_envelope_frame() {
     assert_eq!(buffer, frame);
 
     let mut parser = CrsfParser::new();
-    for &byte in &frame[..63] {
-        assert_eq!(parser.push_byte_raw(byte), Ok(None));
+    for byte in &frame[..63] {
+        assert_eq!(
+            parser.next_raw_packet(&mut core::slice::from_ref(byte)),
+            None
+        );
     }
-    let raw = parser.push_byte_raw(frame[63]).unwrap().unwrap();
+    let raw = parser.next_raw_packet(&mut &frame[63..]).unwrap().unwrap();
     assert_eq!(raw.len(), 64);
     assert_eq!(raw.raw_packet_type(), 0xaa);
     assert_eq!(raw.payload(), &frame[3..63]);
@@ -75,19 +80,19 @@ fn test_maximum_mavlink_envelope_frame() {
 
     for split in 0..=frame.len() {
         let mut parser = CrsfParser::new();
-        let mut packets: Vec<_> = parser.iter_packets(&frame[..split]).collect();
-        packets.extend(parser.iter_packets(&frame[split..]));
+        let mut packets: Vec<_> = parser.iter_packets(&mut &frame[..split]).collect();
+        packets.extend(parser.iter_packets(&mut &frame[split..]));
         assert_eq!(packets, vec![Ok(Packet::MavlinkEnvelope(packet.clone()))]);
     }
 
     let mut parser = CrsfParser::new();
-    assert_eq!(parser.push_byte_raw(0xc8), Ok(None));
+    assert_eq!(parser.next_raw_packet(&mut &[0xc8][..]), None);
     assert_eq!(
-        parser.push_byte_raw(63),
-        Err(CrsfStreamError::InvalidPacketLength(63))
+        parser.next_raw_packet(&mut &[63][..]),
+        Some(Err(CrsfStreamError::InvalidPacketLength(63)))
     );
     assert_eq!(
-        parser.iter_packets(&frame).next(),
+        parser.iter_packets(&mut &frame[..]).next(),
         Some(Ok(Packet::MavlinkEnvelope(packet)))
     );
 }
@@ -110,8 +115,8 @@ fn test_logging_short_header_wire_layout() {
 
     for split in 0..=frame.len() {
         let mut parser = CrsfParser::new();
-        let mut packets: Vec<_> = parser.iter_packets(&frame[..split]).collect();
-        packets.extend(parser.iter_packets(&frame[split..]));
+        let mut packets: Vec<_> = parser.iter_packets(&mut &frame[..split]).collect();
+        packets.extend(parser.iter_packets(&mut &frame[split..]));
         assert_eq!(packets, vec![Ok(Packet::Logging(packet.clone()))]);
     }
 
@@ -121,7 +126,7 @@ fn test_logging_short_header_wire_layout() {
     assert_eq!(len, 62);
     assert_eq!(buffer[1], 60);
     assert_eq!(
-        CrsfParser::new().iter_packets(&buffer[..len]).next(),
+        CrsfParser::new().iter_packets(&mut &buffer[..len]).next(),
         Some(Ok(Packet::Logging(packet)))
     );
 }
@@ -149,8 +154,8 @@ fn test_link_statistics_repeater_wire_layout() {
     // Check streaming parsing across every possible chunk boundary.
     for split in 0..=frame.len() {
         let mut parser = CrsfParser::new();
-        let mut packets: Vec<_> = parser.iter_packets(&frame[..split]).collect();
-        packets.extend(parser.iter_packets(&frame[split..]));
+        let mut packets: Vec<_> = parser.iter_packets(&mut &frame[..split]).collect();
+        packets.extend(parser.iter_packets(&mut &frame[split..]));
         assert_eq!(
             packets,
             vec![Ok(Packet::LinkStatisticsRepeater(packet.clone()))]
@@ -191,7 +196,8 @@ fn test_link_statistics_rx_tx_wire_layouts() {
         };
         assert_eq!(&buffer[..len], *frame);
         let mut parser = CrsfParser::new();
-        let mut packets = parser.iter_packets(frame);
+        let mut input = &frame[..];
+        let mut packets = parser.iter_packets(&mut input);
         assert_eq!(packets.next(), Some(Ok(expected)));
         assert_eq!(packets.next(), None);
     }
@@ -211,7 +217,8 @@ fn test_battery_wire_layouts() {
         let mut expected = Battery::new(120, 15, 1234567, 75).unwrap();
         expected.id = if index == 0 { 0 } else { 42 };
         let mut parser = CrsfParser::new();
-        let mut packets = parser.iter_packets(frame);
+        let mut input = &frame[..];
+        let mut packets = parser.iter_packets(&mut input);
         assert_eq!(packets.next(), Some(Ok(Packet::Battery(expected.clone()))));
         assert_eq!(packets.next(), None);
 
@@ -259,7 +266,7 @@ fn test_stream_with_back_to_back_packets() {
 
     let mut parser = CrsfParser::new();
     let packets: std::vec::Vec<Result<Packet, CrsfStreamError>> =
-        parser.iter_packets(&stream).collect();
+        parser.iter_packets(&mut &stream[..]).collect();
 
     assert_eq!(packets.len(), 2);
     assert!(packets[0].is_ok());
@@ -281,7 +288,7 @@ fn test_stream_with_interspersed_garbage() {
     let mut parser = CrsfParser::new();
     // We expect errors from the garbage, but the iterator should recover
     let packets: std::vec::Vec<Packet> = parser
-        .iter_packets(&stream)
+        .iter_packets(&mut &stream[..])
         .filter_map(Result::ok)
         .collect();
 
@@ -301,7 +308,7 @@ fn test_stream_with_partial_first_packet() {
 
     let mut parser = CrsfParser::new();
     let packets: std::vec::Vec<Packet> = parser
-        .iter_packets(&stream)
+        .iter_packets(&mut &stream[..])
         .filter_map(Result::ok)
         .collect();
 
@@ -347,7 +354,7 @@ fn test_stream_recovers_after_incomplete_frame_across_chunks() {
     let mut parsed_after_incomplete_chunk = 0usize;
 
     for (index, chunk) in chunks.iter().enumerate() {
-        for item in parser.iter_packets(chunk) {
+        for item in parser.iter_packets(&mut &chunk[..]) {
             if item.is_ok() {
                 if index < 2 {
                     parsed_in_first_two_chunks += 1;
@@ -389,7 +396,7 @@ fn test_false_sync_at_crc_boundary_recovery() {
 
     let mut parser = CrsfParser::new();
     let packets: Vec<Packet> = parser
-        .iter_packets(&stream)
+        .iter_packets(&mut &stream[..])
         .filter_map(Result::ok)
         .collect();
 
@@ -422,7 +429,7 @@ fn test_invalid_length_byte_reused_as_sync() {
 
     let mut parser = CrsfParser::new();
     let packets: Vec<Packet> = parser
-        .iter_packets(&stream)
+        .iter_packets(&mut &stream[..])
         .filter_map(Result::ok)
         .collect();
 
@@ -463,19 +470,24 @@ fn test_state_persistence_across_iter_packets_calls() {
     );
 
     let mut parser = CrsfParser::new();
-    let first_call_packets: Vec<Packet> = parser.iter_packets(&p1).filter_map(Result::ok).collect();
+    let first_call_packets: Vec<Packet> = parser
+        .iter_packets(&mut &p1[..])
+        .filter_map(Result::ok)
+        .collect();
     assert_eq!(first_call_packets.len(), 1);
 
     // Leave parser in a bad candidate frame that would consume next sync on old behavior.
     let middle_chunk = [0xC0, 0x04, 0x16, 0x00, 0x00];
     let middle_call_packets: Vec<Packet> = parser
-        .iter_packets(&middle_chunk)
+        .iter_packets(&mut &middle_chunk[..])
         .filter_map(Result::ok)
         .collect();
     assert!(middle_call_packets.is_empty());
 
-    let second_call_packets: Vec<Packet> =
-        parser.iter_packets(&p2).filter_map(Result::ok).collect();
+    let second_call_packets: Vec<Packet> = parser
+        .iter_packets(&mut &p2[..])
+        .filter_map(Result::ok)
+        .collect();
     assert_eq!(second_call_packets.len(), 1);
 }
 
@@ -502,7 +514,7 @@ fn test_address_bytes_in_payload_do_not_prevent_recovery() {
     let mut parser = CrsfParser::new();
     let mut ok_count = 0usize;
     for chunk in [chunk1, chunk2, chunk3] {
-        for item in parser.iter_packets(chunk) {
+        for item in parser.iter_packets(&mut &chunk[..]) {
             if item.is_ok() {
                 ok_count += 1;
             }
@@ -524,12 +536,12 @@ fn test_chunk_boundary_all_split_points() {
         let mut parser = CrsfParser::new();
         let mut count = 0usize;
 
-        for item in parser.iter_packets(&stream[..split]) {
+        for item in parser.iter_packets(&mut &stream[..split]) {
             if item.is_ok() {
                 count += 1;
             }
         }
-        for item in parser.iter_packets(&stream[split..]) {
+        for item in parser.iter_packets(&mut &stream[split..]) {
             if item.is_ok() {
                 count += 1;
             }

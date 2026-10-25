@@ -23,7 +23,7 @@ fn check_extensions<T: CrsfPacket + core::fmt::Debug + PartialEq>(
         assert_eq!(T::from_bytes(&extended).unwrap(), expected);
         assert_eq!(
             CrsfParser::new()
-                .iter_packets(&frame(T::PACKET_TYPE, &extended))
+                .iter_packets(&mut frame(T::PACKET_TYPE, &extended).as_slice())
                 .collect::<Vec<_>>(),
             vec![Ok(expected_packet.clone())],
             "{:?}, payload length {len}",
@@ -45,7 +45,7 @@ fn check_extensions<T: CrsfPacket + core::fmt::Debug + PartialEq>(
         );
         assert_eq!(
             CrsfParser::new()
-                .iter_packets(&frame(T::PACKET_TYPE, &payload[..len]))
+                .iter_packets(&mut frame(T::PACKET_TYPE, &payload[..len]).as_slice())
                 .collect::<Vec<_>>(),
             vec![Err(CrsfStreamError::ParsingError(
                 CrsfParsingError::InvalidPayloadLength,
@@ -109,7 +109,7 @@ fn antenna_extensions_are_decoded_before_unknown_trailing_fields() {
     ] {
         assert_eq!(
             CrsfParser::new()
-                .iter_packets(&frame(packet_type, payload))
+                .iter_packets(&mut frame(packet_type, payload).as_slice())
                 .collect::<Vec<_>>(),
             vec![Err(CrsfStreamError::ParsingError(
                 CrsfParsingError::InvalidPayloadLength,

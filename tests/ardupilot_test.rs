@@ -70,8 +70,8 @@ fn independent_wire_fixtures() {
         assert_eq!(buffer[len], 0xaa);
         for split in 0..=frame.len() {
             let mut parser = CrsfParser::new();
-            let mut parsed: Vec<_> = parser.iter_packets(&frame[..split]).collect();
-            parsed.extend(parser.iter_packets(&frame[split..]));
+            let mut parsed: Vec<_> = parser.iter_packets(&mut &frame[..split]).collect();
+            parsed.extend(parser.iter_packets(&mut &frame[split..]));
             assert_eq!(parsed, vec![Ok(expected.clone())]);
         }
     }
@@ -108,7 +108,7 @@ fn maximum_payloads_and_broadcast_address() {
             assert!(len <= 60);
             assert_eq!(
                 CrsfParser::new()
-                    .iter_packets(&buffer[..len])
+                    .iter_packets(&mut &buffer[..len])
                     .collect::<Vec<_>>(),
                 vec![Ok(expected)]
             );

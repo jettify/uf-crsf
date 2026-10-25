@@ -56,11 +56,11 @@ async fn main(_spawner: Spawner) {
     loop {
         match read_serial_data(&mut buf_rx, &mut buffer).await {
             Ok(bytes) => {
-                for &byte in &buffer[..bytes] {
-                    match parser.push_byte(byte) {
-                        Ok(Some(packet)) => info!("{:?}", packet),
+                let mut input = &buffer[..bytes];
+                for result in parser.iter_packets(&mut input) {
+                    match result {
+                        Ok(packet) => info!("{:?}", packet),
                         Err(e) => info!("Parsing error {:?}", e),
-                        Ok(None) => (),
                     }
                 }
             }

@@ -11,7 +11,7 @@ use uf_crsf::CrsfStreamError;
 
 async fn build_link_statistics_packet_bytes(uplink_rssi_1: u8) -> std::vec::Vec<u8> {
     let packet = LinkStatistics {
-        uplink_rssi_1: uplink_rssi_1,
+        uplink_rssi_1,
         uplink_rssi_2: 20,
         uplink_link_quality: 95,
         uplink_snr: -80,
@@ -131,4 +131,100 @@ async fn test_read_packet_async_chunked_stream() {
         downlink_snr: -75,
     };
     assert!(matches!(parsed_packet2, Packet::LinkStatistics(p) if p == expected_packet2));
+}
+
+mod common;
+
+#[tokio::test]
+async fn buffered_results_resume_without_transport_reads() {
+    use common::{ChunkReader, VALID_FRAME};
+    use std::{cell::Cell, rc::Rc};
+    let mut invalid_crc = VALID_FRAME;
+    invalid_crc[13] ^= 1;
+    let invalid_payload = [
+        0xC8,
+        2,
+        0x14,
+        crc::Crc::<u8>::new(&crc::CRC_8_DVB_S2).checksum(&[0x14]),
+    ];
+    let bytes = [
+        &[0xFF][..],
+        &VALID_FRAME,
+        &invalid_crc,
+        &invalid_payload,
+        &VALID_FRAME,
+    ]
+    .concat();
+    let reads = Rc::new(Cell::new(0));
+    let mut reader = AsyncCrsfReader::new(ChunkReader {
+        input: &bytes,
+        chunk_size: 64,
+        reads: reads.clone(),
+        fail_on: None,
+    });
+    assert_eq!(
+        reader.read_packet().await,
+        Err(CrsfStreamError::InvalidSync(0xFF))
+    );
+    assert!(matches!(
+        reader.read_packet().await,
+        Ok(Packet::LinkStatistics(_))
+    ));
+    assert!(matches!(
+        reader.read_packet().await,
+        Err(CrsfStreamError::InvalidCrc { .. })
+    ));
+    assert!(matches!(
+        reader.read_packet().await,
+        Err(CrsfStreamError::ParsingError(_))
+    ));
+    assert!(matches!(
+        reader.read_packet().await,
+        Ok(Packet::LinkStatistics(_))
+    ));
+    assert_eq!(reads.get(), 1);
+    assert_eq!(
+        reader.read_packet().await,
+        Err(CrsfStreamError::UnexpectedEof)
+    );
+    assert_eq!(reads.get(), 2);
+}
+
+#[tokio::test]
+async fn split_reads_and_transport_error_preserve_partial_frames() {
+    use common::{ChunkReader, VALID_FRAME};
+    use std::{cell::Cell, rc::Rc};
+    let bytes = [VALID_FRAME, VALID_FRAME].concat();
+    for chunk_size in [1, 2, 7, 64] {
+        let mut reader = AsyncCrsfReader::new(ChunkReader {
+            input: &bytes,
+            chunk_size,
+            reads: Rc::new(Cell::new(0)),
+            fail_on: None,
+        });
+        for _ in 0..2 {
+            assert!(matches!(
+                reader.read_packet().await,
+                Ok(Packet::LinkStatistics(_))
+            ));
+        }
+        assert_eq!(
+            reader.read_packet().await,
+            Err(CrsfStreamError::UnexpectedEof)
+        );
+    }
+    let mut reader = AsyncCrsfReader::new(ChunkReader {
+        input: &VALID_FRAME,
+        chunk_size: 7,
+        reads: Rc::new(Cell::new(0)),
+        fail_on: Some(2),
+    });
+    assert_eq!(
+        reader.read_packet().await,
+        Err(CrsfStreamError::Io(embedded_io::ErrorKind::Other))
+    );
+    assert!(matches!(
+        reader.read_packet().await,
+        Ok(Packet::LinkStatistics(_))
+    ));
 }

@@ -6,14 +6,13 @@ use crate::packets::PacketAddress;
 use crate::parser::CrsfParser;
 use embedded_io_async::Error;
 use embedded_io_async::Write;
-use heapless::Deque;
-
-const ASYNC_IO_BUFFER_SIZE: usize = crate::constants::CRSF_MAX_PACKET_SIZE * 2;
 
 pub struct AsyncCrsfReader<R> {
     parser: CrsfParser,
     reader: R,
-    input_buffer: Deque<u8, ASYNC_IO_BUFFER_SIZE>,
+    input_buffer: [u8; crate::constants::CRSF_MAX_PACKET_SIZE],
+    start: usize,
+    end: usize,
 }
 
 /// Asynchronously writes a CRSF packet to an `embedded_io_async::Write` stream.
@@ -22,36 +21,32 @@ impl<R: embedded_io_async::Read> AsyncCrsfReader<R> {
         Self {
             parser: CrsfParser::new(),
             reader,
-            input_buffer: Deque::new(),
+            input_buffer: [0; crate::constants::CRSF_MAX_PACKET_SIZE],
+            start: 0,
+            end: 0,
         }
     }
 
     pub async fn read_packet(&mut self) -> Result<Packet, CrsfStreamError> {
-        let mut temp_read_buf = [0; crate::constants::CRSF_MAX_PACKET_SIZE];
-
         loop {
-            while let Some(byte) = self.input_buffer.pop_front() {
-                match self.parser.push_byte(byte) {
-                    Ok(Some(packet)) => return Ok(packet),
-                    Ok(None) => (),
-                    Err(e) => return Err(e),
-                }
+            let mut input = &self.input_buffer[self.start..self.end];
+            let result = self.parser.next_packet(&mut input);
+            self.start = self.end - input.len();
+            if let Some(result) = result {
+                return result;
             }
+
+            self.start = 0;
+            self.end = 0;
             let bytes_read = self
                 .reader
-                .read(&mut temp_read_buf)
+                .read(&mut self.input_buffer)
                 .await
                 .map_err(|e| CrsfStreamError::Io(e.kind()))?;
-
             if bytes_read == 0 {
                 return Err(CrsfStreamError::UnexpectedEof);
             }
-
-            for byte in &temp_read_buf[..bytes_read] {
-                self.input_buffer
-                    .push_back(*byte)
-                    .map_err(|_| CrsfStreamError::InputBufferTooSmall)?;
-            }
+            self.end = bytes_read;
         }
     }
 }

@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_flight_mode_from_bytes_no_null() {
-        let data: [u8; 4] = [b'A', b'C', b'R', b'O'];
+        let data: [u8; 4] = *b"ACRO";
         let flight_mode = FlightMode::from_bytes(&data).unwrap();
 
         assert_eq!(flight_mode.flight_mode(), "ACRO");

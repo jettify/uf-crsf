@@ -43,7 +43,7 @@ fn main() {
         .timeout(Duration::from_millis(10))
         .open()
         .unwrap_or_else(|e| {
-            eprintln!("Failed to open serial port '{}': {}", &path, e);
+            eprintln!("Failed to open serial port '{}': {}", path, e);
             exit(1);
         });
 

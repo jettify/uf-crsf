@@ -121,7 +121,8 @@ fn main() {
         0x42, // Crc
     ];
 
-    for item in parser.iter_packets(&buf) {
+    let mut input = buf.as_slice();
+    for item in parser.iter_packets(&mut input) {
         match item {
             Ok(p) => println!("{:?}", p),
             Err(e) => eprintln!("Error parsing packet: {:?}", e),
@@ -187,7 +188,8 @@ fn main() {
     loop {
         match port.read(buf.as_mut_slice()) {
             Ok(n) => {
-                for packet in parser.iter_packets(&buf[..n]) {
+                let mut input = &buf[..n];
+                for packet in parser.iter_packets(&mut input) {
                     println!("{:?}", packet);
                 }
             }

@@ -44,7 +44,7 @@ async fn main() {
         .timeout(Duration::from_millis(10))
         .open_native_async()
         .unwrap_or_else(|e| {
-            eprintln!("Failed to open serial port '{}': {}", &path, e);
+            eprintln!("Failed to open serial port '{}': {}", path, e);
             exit(1);
         });
 
