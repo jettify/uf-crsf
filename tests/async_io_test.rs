@@ -29,7 +29,7 @@ async fn build_link_statistics_packet_bytes(uplink_rssi_1: u8) -> std::vec::Vec<
     buffer
 }
 
-#[tokio::test]
+#[futures_test::test]
 async fn test_write_and_read_packet_async() {
     let packet_bytes = build_link_statistics_packet_bytes(10).await;
 
@@ -58,14 +58,14 @@ async fn test_write_and_read_packet_async() {
     assert!(matches!(parsed_packet, Packet::LinkStatistics(p) if p == packet));
 }
 
-#[tokio::test]
+#[futures_test::test]
 async fn test_read_packet_async_with_no_data() {
     let mut reader = AsyncCrsfReader::new(&[][..]);
     let result = reader.read_packet().await;
     assert!(matches!(result, Err(CrsfStreamError::UnexpectedEof)));
 }
 
-#[tokio::test]
+#[futures_test::test]
 async fn test_read_packet_async_with_incomplete_data() {
     let packet_bytes = build_link_statistics_packet_bytes(10).await;
     let mut reader = AsyncCrsfReader::new(&packet_bytes[..packet_bytes.len() - 1]);
@@ -73,7 +73,7 @@ async fn test_read_packet_async_with_incomplete_data() {
     assert!(matches!(result, Err(CrsfStreamError::UnexpectedEof)));
 }
 
-#[tokio::test]
+#[futures_test::test]
 async fn test_read_packet_async_with_garbage() {
     let garbage = [0x01, 0x02, 0x03];
     let mut reader = AsyncCrsfReader::new(&garbage[..]);
@@ -82,7 +82,7 @@ async fn test_read_packet_async_with_garbage() {
     assert!(matches!(result, Err(CrsfStreamError::InvalidSync(_))));
 }
 
-#[tokio::test]
+#[futures_test::test]
 async fn test_read_packet_async_chunked_stream() {
     let packet1_bytes = build_link_statistics_packet_bytes(10).await;
     let packet2_bytes = build_link_statistics_packet_bytes(50).await;
@@ -135,7 +135,7 @@ async fn test_read_packet_async_chunked_stream() {
 
 mod common;
 
-#[tokio::test]
+#[futures_test::test]
 async fn buffered_results_resume_without_transport_reads() {
     use common::{ChunkReader, VALID_FRAME};
     use std::{cell::Cell, rc::Rc};
@@ -201,7 +201,7 @@ async fn buffered_results_resume_without_transport_reads() {
     assert_eq!(reads.get(), 2);
 }
 
-#[tokio::test]
+#[futures_test::test]
 async fn split_reads_and_transport_error_preserve_partial_frames() {
     use common::{ChunkReader, VALID_FRAME};
     use std::{cell::Cell, rc::Rc};
@@ -240,7 +240,7 @@ async fn split_reads_and_transport_error_preserve_partial_frames() {
     ));
 }
 
-#[tokio::test]
+#[futures_test::test]
 async fn retained_frames_are_returned_before_reading_transport_again() {
     use common::{recovery_stream, ChunkReader};
     use std::{cell::Cell, rc::Rc};
