@@ -7,6 +7,9 @@
 
 A `no_std` Rust library for parsing the TBS Crossfire protocol, designed for embedded environments without an allocator.
 
+CRSF is widely used in FPV drones and other RC aircraft, connecting radios (like EdgeTX based), TBS Crossfire and ExpressLRS radio links,
+receivers, and flight controllers. It carries RC channel data and telemetry such as battery voltage, GPS position, and link statistics.
+
 This library provides a two-layer API:
 
 - A low-level layer for raw packet parsing from a byte stream.
@@ -16,9 +19,104 @@ This library provides a two-layer API:
 
 - `no_std` and allocator-free for embedded systems.
 - Two-layer API for flexible parsing.
+- Zero copy with spill over buffer, when packet divided between two reads.
 - Supports a wide range of CRSF packets.
 - IO and MCU agnostic.
 - Minimal dependencies.
+
+## Note
+
+Library is under active development and testing, API might change at any time.
+
+## Installation
+
+Add `uf-crsf` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+uf-crsf = "0.6"
+```
+
+Or use the command line:
+
+```bash
+cargo add uf-crsf
+```
+
+## Usage
+
+Here is a basic example of how to parse a CRSF packet from a byte array:
+
+```rust
+use uf_crsf::CrsfParser;
+
+fn main() {
+    let mut parser = CrsfParser::new();
+
+    // A complete CRSF frame containing RC channels
+    let buf: [u8; 26] = [
+        0xC8, // Address
+        0x18, // Length of type, payload, and CRC
+        0x16, // Type (RC Channels)
+        // Payload (22 bytes)
+        0x03, 0x1F, 0x58, 0xC0, 0x07, 0x16, 0xB0, 0x80, 0x05, 0x2C, 0x60, 0x01, 0x0B, 0xF8, 0xC0,
+        0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC,
+        0x42, // CRC
+    ];
+
+    let mut input = buf.as_slice();
+    for item in parser.iter_packets(&mut input) {
+        match item {
+            Ok(p) => println!("{:?}", p),
+            Err(e) => eprintln!("Error parsing packet: {:?}", e),
+        }
+    }
+}
+```
+
+
+Keep the same parser across input chunks. Exhaust `iter_packets` for each chunk
+so it can retain a trailing partial frame for the next chunk. Errors are yielded
+as items; continue iterating after an error to resume scanning for valid frames.
+If you stop early, keep the updated input cursor to resume unread bytes later.
+
+Use `next_raw_packet` to inspect validated frames without decoding their payloads:
+
+```rust
+use uf_crsf::CrsfParser;
+
+fn main() {
+    let bytes = [
+        0xC8, 0x0C, 0x14, 0x10, 0x13, 0x63, 0x97,
+        0x01, 0x02, 0x03, 0x08, 0x58, 0x94, 0xFC,
+    ];
+    let mut parser = CrsfParser::new();
+
+    // Chunk boundaries need not align with frame boundaries.
+    for chunk in bytes.chunks(5) {
+        let mut input = chunk;
+        while let Some(result) = parser.next_raw_packet(&mut input) {
+            match result {
+                Ok(frame) => println!(
+                    "type={:#04X}, payload={:?}",
+                    frame.raw_packet_type(),
+                    frame.payload(),
+                ),
+                Err(error) => eprintln!("Framing error: {:?}", error),
+            }
+        }
+    }
+}
+```
+
+Complete frames borrow directly from the input when contiguous; split frames
+borrow from the parser's internal buffer. Release each raw frame before calling
+`next_raw_packet` again. Keep calling until it returns `None`, even if the input
+cursor is empty: recovery can yield frames or errors from retained bytes.
+
+See the [examples](examples/README.md) for desktop serial readers, including
+blocking and async wrappers and their required feature flags.
+
 
 ## Implementation status
 
@@ -81,130 +179,6 @@ This library provides a two-layer API:
 | ArduPilot Legacy Reserved | `0x7F` | 🟢 | same payloads as `0x80` |
 | Rotorflight Telemetry Envelope | `0x88` | 🔴 |  |
 
-## Note
-
-Originally developed for the `uflight` flight-controller project, but useful as a standalone crate.
-Library is under active development and testing, API might change at any time.
-
-## Installation
-
-Add `uf-crsf` to your `Cargo.toml`:
-
-```toml
-[dependencies]
-uf-crsf = "*" # replace * by the latest version of the crate.
-```
-
-Or use the command line:
-
-```bash
-cargo add uf-crsf
-```
-
-## Usage
-
-Here is a basic example of how to parse a CRSF packet from a byte array:
-
-```rust
-use uf_crsf::CrsfParser;
-
-fn main() {
-    let mut parser = CrsfParser::new();
-
-    // A sample CRSF packet payload for RC channels
-    let buf: [u8; 26] = [
-        0xC8, // Address
-        0x18, // Length
-        0x16, // Type (RC Channels)
-        0x03, 0x1F, 0x58, 0xC0, 0x07, 0x16, 0xB0, 0x80, 0x05, 0x2C, 0x60, 0x01, 0x0B, 0xF8, 0xC0,
-        0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 252,  // Packet
-        0x42, // Crc
-    ];
-
-    let mut input = buf.as_slice();
-    for item in parser.iter_packets(&mut input) {
-        match item {
-            Ok(p) => println!("{:?}", p),
-            Err(e) => eprintln!("Error parsing packet: {:?}", e),
-        }
-    }
-}
-```
-
-
-Here is a basic example of how to parse and print telemetry `CRSF` packets from an ELRS `TX16S` radio controller, though it should work with any other `EdgeTX` device. Simply configure telemetry mirroring to a USB serial port and connect the controller to your PC.
-
-```rust no_run
-use std::env;
-use std::io::ErrorKind;
-use std::process::exit;
-use std::time::Duration;
-use uf_crsf::CrsfParser;
-
-fn main() {
-    let ports = match serialport::available_ports() {
-        Ok(ports) => ports,
-        Err(e) => {
-            eprintln!("Failed to enumerate serial ports: {}", e);
-            exit(1);
-        }
-    };
-
-    if ports.is_empty() {
-        eprintln!("No serial ports found.");
-        eprintln!("Please specify a serial port path as an argument.");
-        exit(1);
-    }
-
-    let path = env::args().nth(1).unwrap_or_else(|| {
-        const DEFAULT_PORT: &str = "/dev/tty.usbmodem00000000001B1";
-        if ports.iter().any(|p| p.port_name == DEFAULT_PORT) {
-            println!(
-                "No serial port specified. Using default port: {}",
-                DEFAULT_PORT
-            );
-            DEFAULT_PORT.to_string()
-        } else {
-            println!("No serial port specified. Available ports:");
-            for p in &ports {
-                println!("  {}", p.port_name);
-            }
-            println!("\nUsing first available port: {}", ports[0].port_name);
-            ports[0].port_name.clone()
-        }
-    });
-
-    let mut port = serialport::new(&path, 420_000)
-        .timeout(Duration::from_millis(10))
-        .open()
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to open serial port '{}': {}", &path, e);
-            exit(1);
-        });
-
-    let mut buf = [0; 1024];
-    let mut parser = CrsfParser::new();
-    println!("Reading from serial port '{}'...", path);
-    loop {
-        match port.read(buf.as_mut_slice()) {
-            Ok(n) => {
-                let mut input = &buf[..n];
-                for packet in parser.iter_packets(&mut input) {
-                    println!("{:?}", packet);
-                }
-            }
-            Err(ref e) if e.kind() == ErrorKind::TimedOut => {
-                // This is expected when no data is coming in
-            }
-            Err(e) => {
-                eprintln!("Error reading from serial port: {}", e);
-                break;
-            }
-        }
-    }
-}
-
-```
 
 ## License
 
