@@ -5,23 +5,20 @@ use crate::packets::PacketAddress;
 use crc::Crc;
 use num_enum::TryFromPrimitive;
 
-#[derive(Debug, Default, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-enum State {
-    #[default]
-    AwaitingSync,
-    AwaitingLength,
-    Reading {
-        frame_len: usize,
-    },
-    AwaitingCrc,
+// Lengths are returned separately from borrows so both storage paths can use
+// the same validator without borrowing the parser across buffer updates.
+enum FrameStatus {
+    /// A frame with valid sync, length, and CRC; contains its total byte length.
+    Complete(usize),
+    /// Contains the number of additional bytes needed for the next validation stage.
+    Incomplete(usize),
 }
 
 #[derive(Debug)]
 pub struct CrsfParser {
     buffer: [u8; constants::CRSF_MAX_PACKET_SIZE],
-    state: State,
-    len: usize,
+    start: usize,
+    end: usize,
 }
 
 const CRC8_DVB_S2: Crc<u8> = Crc::<u8>::new(&crc::CRC_8_DVB_S2);
@@ -30,8 +27,8 @@ impl CrsfParser {
     pub fn new() -> Self {
         Self {
             buffer: [0; constants::CRSF_MAX_PACKET_SIZE],
-            state: State::AwaitingSync,
-            len: 0,
+            start: 0,
+            end: 0,
         }
     }
 
@@ -77,8 +74,8 @@ impl CrsfParser {
     ///
     /// Contiguous frames are decoded directly from `*input` without copying into
     /// the parser's internal buffer; frames split across chunks use the internal
-    /// buffer. Returns `None` once `input` is exhausted (buffering any trailing
-    /// partial frame).
+    /// buffer. Returns `None` when more input is needed, preserving any trailing
+    /// partial frame and recovery bytes.
     pub fn next_packet(&mut self, input: &mut &[u8]) -> Option<Result<Packet, CrsfStreamError>> {
         self.next_raw_packet(input).map(|result| {
             result.and_then(|raw| Packet::parse(&raw).map_err(CrsfStreamError::ParsingError))
@@ -88,9 +85,15 @@ impl CrsfParser {
     /// Advances `input` to the next validated [`RawCrsfPacket`] or framing error.
     ///
     /// Contiguous frames borrow directly from `*input`; frames split across chunks
-    /// borrow from the parser's internal spillover buffer. Returns `None` once
-    /// `input` is exhausted (buffering any trailing partial frame for subsequent
-    /// calls).
+    /// borrow from the parser's internal buffer. Returns `None` when more input
+    /// is needed, preserving any trailing partial frame for subsequent calls.
+    ///
+    /// A framing error discards only the rejected start byte. Later calls retry
+    /// the remaining bytes, which can produce additional framing errors. Bytes
+    /// retained during recovery are processed before new input, so a call can
+    /// return a packet or error even when `input` is empty. Drain results until
+    /// `None` before waiting for more data. A plausible length waits for enough
+    /// bytes to validate its CRC before considering later frame starts.
     ///
     /// Release each borrowed frame before calling `next_raw_packet` again:
     ///
@@ -128,183 +131,103 @@ impl CrsfParser {
         &'p mut self,
         input: &mut &'i [u8],
     ) -> Option<Result<RawCrsfPacket<'p>, CrsfStreamError>> {
-        while !input.is_empty() {
-            if self.state == State::AwaitingSync {
+        loop {
+            // Internal buffer is empty (no incomplete bytes from prevous reads),
+            // parser can continude with zero copy mode
+            if self.start == self.end {
+                self.reset();
+                if input.is_empty() {
+                    return None;
+                }
                 let chunk = *input;
-                let sync_byte = chunk[0];
-                if !Self::is_valid_sync(sync_byte) {
-                    *input = &chunk[1..];
-                    return Some(Err(CrsfStreamError::InvalidSync(sync_byte)));
-                }
-                if chunk.len() == 1 {
-                    self.try_start_frame(sync_byte);
-                    *input = &[];
-                    return None;
-                }
-
-                let length_byte = chunk[1];
-                let frame_len = usize::from(length_byte) + 2;
-                if !Self::is_valid_frame_len(frame_len) {
-                    // Leave a valid sync candidate at the front of `input` so a
-                    // resynchronized frame in this chunk stays on the zero-copy path.
-                    *input = if Self::is_valid_sync(length_byte) {
-                        &chunk[1..]
-                    } else {
-                        &chunk[2..]
-                    };
-                    return Some(Err(CrsfStreamError::InvalidPacketLength(length_byte)));
-                }
-
-                if chunk.len() < frame_len {
-                    self.buffer_partial_frame(chunk, frame_len);
-                    *input = &[];
-                    return None;
-                }
-
-                let calculated_crc = CRC8_DVB_S2.checksum(&chunk[2..frame_len - 1]);
-                let packet_crc = chunk[frame_len - 1];
-                if calculated_crc != packet_crc {
-                    *input = if Self::is_valid_sync(packet_crc) {
-                        &chunk[frame_len - 1..]
-                    } else {
-                        &chunk[frame_len..]
-                    };
-                    return Some(Err(CrsfStreamError::InvalidCrc {
-                        calculated_crc,
-                        packet_crc,
-                    }));
-                }
-
-                *input = &chunk[frame_len..];
-                return Some(Ok(RawCrsfPacket {
-                    bytes: &chunk[..frame_len],
-                }));
-            }
-
-            // Copy only the body bytes needed by this split candidate, leaving
-            // its CRC and any following frames for the shared validation path.
-            if let State::Reading { frame_len } = self.state {
-                let body_remaining = (frame_len - 1) - self.len;
-                let copy_len = body_remaining.min(input.len());
-                self.buffer[self.len..self.len + copy_len].copy_from_slice(&input[..copy_len]);
-                self.len += copy_len;
-                *input = &input[copy_len..];
-                if self.len == frame_len - 1 {
-                    self.state = State::AwaitingCrc;
-                }
-                continue;
-            }
-
-            // Headers and CRCs of split candidates share the byte state machine.
-            let chunk = *input;
-            let byte = chunk[0];
-            *input = &chunk[1..];
-            match self.push_byte_frame(byte) {
-                Ok(Some(frame_len)) => {
-                    return Some(Ok(RawCrsfPacket {
-                        bytes: &self.buffer[..frame_len],
-                    }));
-                }
-                Ok(None) => (),
-                Err(error) => {
-                    // If `byte` is a valid sync candidate, keep it in `input`
-                    // so a contiguous frame starting at `byte` remains zero-copy.
-                    if self.state == State::AwaitingLength {
-                        self.reset();
-                        *input = chunk;
+                match Self::validate_candidate(chunk) {
+                    Ok(FrameStatus::Complete(frame_len)) => {
+                        *input = &chunk[frame_len..];
+                        return Some(Ok(RawCrsfPacket {
+                            bytes: &chunk[..frame_len],
+                        }));
                     }
+                    Err(error) => {
+                        // Only this start has been disproved. Later bytes may
+                        // contain a valid frame, including inside its payload.
+                        *input = &chunk[1..];
+                        return Some(Err(error));
+                    }
+                    Ok(FrameStatus::Incomplete(_)) => {
+                        self.buffer[..chunk.len()].copy_from_slice(chunk);
+                        self.end = chunk.len();
+                        *input = &[];
+                        return None;
+                    }
+                }
+            }
+            // Parser has incomplete data from prevous calls that needs
+            // to be finished before moving into zero copy mode again
+            match Self::validate_candidate(&self.buffer[self.start..self.end]) {
+                Ok(FrameStatus::Complete(frame_len)) => {
+                    let start = self.start;
+                    self.start += frame_len;
+                    return Some(Ok(RawCrsfPacket {
+                        bytes: &self.buffer[start..self.start],
+                    }));
+                }
+                Err(error) => {
+                    self.start += 1;
                     return Some(Err(error));
                 }
+                Ok(FrameStatus::Incomplete(missing)) => {
+                    if input.is_empty() {
+                        return None;
+                    }
+                    let retained = self.end - self.start;
+                    let count = missing.min(input.len());
+                    if self.end + count > self.buffer.len() {
+                        self.buffer.copy_within(self.start..self.end, 0);
+                        self.start = 0;
+                        self.end = retained;
+                    }
+                    self.buffer[self.end..self.end + count].copy_from_slice(&input[..count]);
+                    self.end += count;
+                    *input = &input[count..];
+                }
             }
         }
-        None
     }
 
+    /// Discards all partial frames and retained recovery bytes.
     pub fn reset(&mut self) {
-        self.len = 0;
-        self.state = State::AwaitingSync;
+        self.start = 0;
+        self.end = 0;
     }
 
-    // Return the completed frame's length separately from its borrow so both
-    // slice fast path and split-frame handling can share the state machine.
-    fn push_byte_frame(&mut self, byte: u8) -> Result<Option<usize>, CrsfStreamError> {
-        match self.state {
-            State::AwaitingSync => {
-                if self.try_start_frame(byte) {
-                    Ok(None)
-                } else {
-                    Err(CrsfStreamError::InvalidSync(byte))
-                }
-            }
-            State::AwaitingLength => {
-                let frame_len = usize::from(byte) + 2;
-                if !Self::is_valid_frame_len(frame_len) {
-                    self.reset();
-                    // A false sync can make this "length" byte invalid. Re-evaluate
-                    // the same byte as a new sync candidate so it is not lost.
-                    self.try_start_frame(byte);
-                    return Err(CrsfStreamError::InvalidPacketLength(byte));
-                }
-                self.buffer[1] = byte;
-                self.len = 2;
-                self.state = State::Reading { frame_len };
-                Ok(None)
-            }
-            State::Reading { frame_len } => {
-                self.buffer[self.len] = byte;
-                self.len += 1;
-                if self.len == frame_len - 1 {
-                    self.state = State::AwaitingCrc;
-                }
-                Ok(None)
-            }
-            State::AwaitingCrc => {
-                let calculated_crc = CRC8_DVB_S2.checksum(&self.buffer[2..self.len]);
-                let packet_crc = byte;
-                if calculated_crc != packet_crc {
-                    self.reset();
-                    // Preserve this byte as potential sync for the next frame.
-                    self.try_start_frame(byte);
-                    return Err(CrsfStreamError::InvalidCrc {
-                        calculated_crc,
-                        packet_crc,
-                    });
-                }
-                self.buffer[self.len] = byte;
-                let frame_len = self.len + 1;
-                self.reset();
-                Ok(Some(frame_len))
-            }
-        }
-    }
-
-    fn is_valid_sync(byte: u8) -> bool {
-        PacketAddress::try_from_primitive(byte).is_ok()
-    }
-
-    fn is_valid_frame_len(frame_len: usize) -> bool {
-        (constants::CRSF_MIN_PACKET_SIZE..=constants::CRSF_MAX_PACKET_SIZE).contains(&frame_len)
-    }
-
-    fn try_start_frame(&mut self, byte: u8) -> bool {
-        if Self::is_valid_sync(byte) {
-            self.buffer[0] = byte;
-            self.len = 1;
-            self.state = State::AwaitingLength;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn buffer_partial_frame(&mut self, chunk: &[u8], frame_len: usize) {
-        self.buffer[..chunk.len()].copy_from_slice(chunk);
-        self.len = chunk.len();
-        self.state = if self.len == frame_len - 1 {
-            State::AwaitingCrc
-        } else {
-            State::Reading { frame_len }
+    fn validate_candidate(bytes: &[u8]) -> Result<FrameStatus, CrsfStreamError> {
+        let Some(&sync) = bytes.first() else {
+            return Ok(FrameStatus::Incomplete(1));
         };
+        PacketAddress::try_from_primitive(sync).map_err(|_| CrsfStreamError::InvalidSync(sync))?;
+
+        let Some(&length) = bytes.get(1) else {
+            return Ok(FrameStatus::Incomplete(1));
+        };
+        let frame_len = usize::from(length) + 2;
+        if !(constants::CRSF_MIN_PACKET_SIZE..=constants::CRSF_MAX_PACKET_SIZE).contains(&frame_len)
+        {
+            return Err(CrsfStreamError::InvalidPacketLength(length));
+        }
+
+        if bytes.len() < frame_len {
+            return Ok(FrameStatus::Incomplete(frame_len - bytes.len()));
+        }
+
+        let calculated_crc = CRC8_DVB_S2.checksum(&bytes[2..frame_len - 1]);
+        let packet_crc = bytes[frame_len - 1];
+        if calculated_crc != packet_crc {
+            return Err(CrsfStreamError::InvalidCrc {
+                calculated_crc,
+                packet_crc,
+            });
+        }
+        Ok(FrameStatus::Complete(frame_len))
     }
 }
 
@@ -393,6 +316,7 @@ pub struct PacketIterator<'p, 'c, 'i> {
 
 impl<'i> PacketIterator<'_, '_, 'i> {
     /// Returns the unread input suffix with the original input lifetime.
+    /// Recovery bytes already held by the parser are not part of this suffix.
     pub fn remaining(&self) -> &'i [u8] {
         self.input
     }
@@ -430,7 +354,7 @@ mod tests {
             .unwrap();
         assert!(matches!(packet, Packet::LinkStatistics(_)));
         assert_eq!(parser.buffer, [0xA5; constants::CRSF_MAX_PACKET_SIZE]);
-        assert_eq!(parser.state, State::AwaitingSync);
+        assert_eq!(parser.start, parser.end);
     }
 
     #[test]
@@ -449,7 +373,7 @@ mod tests {
             assert_eq!(frame.payload().as_ptr(), storage);
             assert!(parser.next_raw_packet(&mut second_half).is_none());
             assert!(second_half.is_empty());
-            assert_eq!(parser.state, State::AwaitingSync);
+            assert_eq!(parser.start, parser.end);
         }
     }
 

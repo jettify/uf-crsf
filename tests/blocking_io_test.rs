@@ -122,10 +122,21 @@ fn buffered_results_resume_without_transport_reads() {
         reader.read_packet(),
         Err(CrsfStreamError::InvalidCrc { .. })
     ));
-    assert!(matches!(
-        reader.read_packet(),
-        Err(CrsfStreamError::ParsingError(_))
-    ));
+    let mut recovery_errors = 0;
+    loop {
+        let result = reader.read_packet();
+        assert_eq!(reads.get(), 1);
+        match result {
+            Err(CrsfStreamError::ParsingError(_)) => break,
+            Err(
+                CrsfStreamError::InvalidSync(_)
+                | CrsfStreamError::InvalidPacketLength(_)
+                | CrsfStreamError::InvalidCrc { .. },
+            ) => recovery_errors += 1,
+            other => panic!("expected recovery error or payload error, got {other:?}"),
+        }
+    }
+    assert!(recovery_errors > 0);
     assert!(matches!(
         reader.read_packet(),
         Ok(Packet::LinkStatistics(_))
@@ -169,4 +180,43 @@ fn split_reads_and_transport_error_preserve_partial_frames() {
         reader.read_packet(),
         Ok(Packet::LinkStatistics(_))
     ));
+}
+
+#[test]
+fn retained_frames_are_returned_before_reading_transport_again() {
+    use common::{recovery_stream, ChunkReader};
+    use std::{cell::Cell, rc::Rc};
+    let bytes = recovery_stream();
+    let reads = Rc::new(Cell::new(0));
+    let mut reader = BlockingCrsfReader::new(ChunkReader {
+        input: &bytes,
+        chunk_size: 16,
+        reads: reads.clone(),
+        fail_on: None,
+    });
+    assert!(matches!(
+        reader.read_packet(),
+        Err(CrsfStreamError::InvalidCrc { .. })
+    ));
+    assert_eq!(reads.get(), 2);
+    assert_eq!(reader.read_packet(), Err(CrsfStreamError::InvalidSync(30)));
+    assert_eq!(
+        reader.read_packet(),
+        Err(CrsfStreamError::InvalidSync(0xFF))
+    );
+    for _ in 0..2 {
+        assert!(matches!(
+            reader.read_packet(),
+            Ok(Packet::LinkStatistics(_))
+        ));
+        assert_eq!(reads.get(), 2);
+    }
+    // The rejected outer CRC is still a recovery byte; drain it before EOF.
+    assert_eq!(
+        reader.read_packet(),
+        Err(CrsfStreamError::InvalidSync(*bytes.last().unwrap()))
+    );
+    assert_eq!(reads.get(), 2);
+    assert_eq!(reader.read_packet(), Err(CrsfStreamError::UnexpectedEof));
+    assert_eq!(reads.get(), 3);
 }
