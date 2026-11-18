@@ -84,6 +84,7 @@ fn fixed_size_codecs_accept_extensions_and_reject_truncation() {
         VariometerSensor => Vario,
         VtxTelemetry => VtxTelemetry,
         DevicePing => DevicePing,
+        ParameterRead => ParameterRead,
     );
     check_extensions::<Game>(&[0xea, 0xec, 1, 0, 42], Packet::Game);
     check_extensions::<Remote>(&[0xea, 0xec, 0x10, 0, 0, 0, 1, 0, 0, 0, 2], Packet::Remote);

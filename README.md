@@ -163,9 +163,9 @@ blocking and async wrappers and their required feature flags.
 | **Extended Frames** |  |  |  |
 | Parameter Ping Devices | `0x28` | 🟢 |  |
 | Parameter Device Information | `0x29` | 🟢 |  |
-| Parameter Settings (Entry) | `0x2B` | 🔴 |  |
-| Parameter Settings (Read) | `0x2C` | 🔴 |  |
-| Parameter Value (Write) | `0x2D` | 🔴 |  |
+| Parameter Settings (Entry) | `0x2B` | 🟢 | raw chunks; caller handles reassembly and typed decoding |
+| Parameter Settings (Read) | `0x2C` | 🟢 | parameter and chunk requests |
+| Parameter Value (Write) | `0x2D` | 🟢 | raw values and acknowledgements; caller handles typed encoding |
 | Direct Commands | `0x32` | 🟢 | discontinued VTX `0x01`/`0x03` payloads are unspecified and unsupported |
 | Remote Related Frames | `0x3A` | 🟢 | timing correction subtype `0x10` |
 | Game | `0x3C` | 🟢 |  |

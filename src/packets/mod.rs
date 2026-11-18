@@ -29,6 +29,7 @@ mod magnetometer;
 mod mavlink_envelope;
 mod mavlink_fc;
 mod mavlink_sensor;
+mod parameters;
 mod rc_channels_packed;
 mod remote;
 mod rpm;
@@ -84,6 +85,9 @@ pub use magnetometer::Magnetometer;
 pub use mavlink_envelope::MavlinkEnvelope;
 pub use mavlink_fc::MavLinkFc;
 pub use mavlink_sensor::MavLinkSensor;
+pub use parameters::ParameterRead;
+pub use parameters::ParameterSettingsEntry;
+pub use parameters::ParameterWrite;
 pub use rc_channels_packed::RcChannelsPacked;
 pub use remote::Remote;
 pub use rpm::Rpm;
@@ -151,6 +155,9 @@ pub enum Packet {
     Attitude(Attitude),
     DeviceInformation(DeviceInformation),
     DevicePing(DevicePing),
+    ParameterSettingsEntry(ParameterSettingsEntry),
+    ParameterRead(ParameterRead),
+    ParameterWrite(ParameterWrite),
     Game(Game),
     NotImlemented(PacketType, usize),
     Commands(DirectCommands),
@@ -207,6 +214,13 @@ impl Packet {
             Remote::PACKET_TYPE => Ok(Self::Remote(Remote::from_bytes(data)?)),
             Attitude::PACKET_TYPE => Ok(Self::Attitude(Attitude::from_bytes(data)?)),
             DevicePing::PACKET_TYPE => Ok(Self::DevicePing(DevicePing::from_bytes(data)?)),
+            ParameterSettingsEntry::PACKET_TYPE => Ok(Self::ParameterSettingsEntry(
+                ParameterSettingsEntry::from_bytes(data)?,
+            )),
+            ParameterRead::PACKET_TYPE => Ok(Self::ParameterRead(ParameterRead::from_bytes(data)?)),
+            ParameterWrite::PACKET_TYPE => {
+                Ok(Self::ParameterWrite(ParameterWrite::from_bytes(data)?))
+            }
             Game::PACKET_TYPE => Ok(Self::Game(Game::from_bytes(data)?)),
             DeviceInformation::PACKET_TYPE => Ok(Self::DeviceInformation(
                 DeviceInformation::from_bytes(data)?,
@@ -468,6 +482,9 @@ mod tests {
 
         // Distinct destination/origin bytes at the start of each extended codec.
         check_codec_header::<DevicePing>(&[0xea, 0xec], true);
+        check_codec_header::<ParameterRead>(&[0xea, 0xec, 2, 1], true);
+        check_codec_header::<ParameterWrite>(&[0xea, 0xec, 2, 42], true);
+        check_codec_header::<ParameterSettingsEntry>(&[0xea, 0xec, 2, 0, 0, 11, 0], true);
         let mut info = [0; DeviceInformation::MIN_PAYLOAD_SIZE];
         info[..2].copy_from_slice(&[0xea, 0xec]);
         check_codec_header::<DeviceInformation>(&info, true);
@@ -491,9 +508,6 @@ mod tests {
     fn test_header_classification_for_unimplemented_types() {
         assert!(!PacketType::SubsetRcChannelsPacked.is_extended());
         for packet_type in [
-            PacketType::ParameterSettingsEntry,
-            PacketType::ParameterRead,
-            PacketType::ParameterWrite,
             PacketType::ElrsStatus,
             PacketType::KissRequest,
             PacketType::KissResponse,
