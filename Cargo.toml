@@ -19,17 +19,17 @@ readme = "README.md"
 
 [dependencies]
 crc = "3.3.0"
-defmt = { version = "1.0.1", optional = true }
-heapless = "0.9.1"
-libm = "0.2.15"
-num_enum = { version = "0.7.3", default-features = false }
+defmt = { version = "1.2.0", optional = true }
+heapless = "0.9.3"
+libm = "0.2.16"
+num_enum = { version = "0.7.6", default-features = false }
 embedded-io-async = { version = "0.7.0", optional = true }
-embedded-io = { version = "0.7.0", optional = true }
+embedded-io = { version = "0.7.1", optional = true }
 
 
 [dev-dependencies]
 serialport = "4.10.1"
-futures-test = "0.3"
+futures-test = "0.3.34"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tokio-serial = "5.5.0"
 embedded-io-adapters = { version = "0.7.0", features = ["tokio-1"] }
