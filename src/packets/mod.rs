@@ -18,6 +18,7 @@ mod flight_mode;
 mod game;
 mod gps;
 mod gps_extended;
+mod gps_home;
 mod gps_time;
 mod heartbeat;
 mod link_statistics;
@@ -74,6 +75,7 @@ pub use flight_mode::FlightMode;
 pub use game::Game;
 pub use gps::Gps;
 pub use gps_extended::GpsExtended;
+pub use gps_home::GpsHome;
 pub use gps_time::GpsTime;
 pub use heartbeat::Heartbeat;
 pub use link_statistics::LinkStatistics;
@@ -134,6 +136,7 @@ pub enum Packet {
     Gps(Gps),
     GpsTime(GpsTime),
     GpsExtended(GpsExtended),
+    GpsHome(GpsHome),
     Vario(VariometerSensor),
     Battery(Battery),
     AirSpeed(AirSpeed),
@@ -195,6 +198,7 @@ impl Packet {
             Gps::PACKET_TYPE => Ok(Self::Gps(Gps::from_bytes(data)?)),
             GpsTime::PACKET_TYPE => Ok(Self::GpsTime(GpsTime::from_bytes(data)?)),
             GpsExtended::PACKET_TYPE => Ok(Self::GpsExtended(GpsExtended::from_bytes(data)?)),
+            GpsHome::PACKET_TYPE => Ok(Self::GpsHome(GpsHome::from_bytes(data)?)),
             AirSpeed::PACKET_TYPE => Ok(Self::AirSpeed(AirSpeed::from_bytes(data)?)),
             Barometer::PACKET_TYPE => Ok(Self::Barometer(Barometer::from_bytes(data)?)),
             Magnetometer::PACKET_TYPE => Ok(Self::Magnetometer(Magnetometer::from_bytes(data)?)),
@@ -269,6 +273,7 @@ pub enum PacketType {
     MavLinkFc = 0x1F,
     FlightMode = 0x21,
     EspNow = 0x22,
+    GpsHome = 0x23,
     DevicePing = 0x28,
     DeviceInfo = 0x29,
     ParameterSettingsEntry = 0x2B,
@@ -325,6 +330,7 @@ impl PacketType {
             | Self::MavLinkFc
             | Self::FlightMode
             | Self::EspNow
+            | Self::GpsHome
             | Self::Logging
             | Self::ArdupilotLegacy
             | Self::ArdupilotResponse
@@ -460,6 +466,7 @@ mod tests {
             FlightMode,
             Gps,
             GpsExtended,
+            GpsHome,
             GpsTime,
             Heartbeat,
             LinkStatistics,
