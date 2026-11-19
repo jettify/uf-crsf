@@ -73,6 +73,7 @@ fn fixed_size_codecs_accept_extensions_and_reject_truncation() {
         EspNow => EspNow,
         Gps => Gps,
         GpsExtended => GpsExtended,
+        GpsHome => GpsHome,
         GpsTime => GpsTime,
         Heartbeat => Heartbeat,
         LinkStatistics => LinkStatistics,

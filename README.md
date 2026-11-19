@@ -19,6 +19,7 @@ This library provides a two-layer API:
 
 - `no_std` and allocator-free for embedded systems.
 - Two-layer API for flexible parsing.
+- Most complete crossfire protocol implementation in Rust.
 - Zero copy with spill over buffer, when packet divided between two reads.
 - Supports a wide range of CRSF packets.
 - IO and MCU agnostic.
@@ -156,6 +157,7 @@ blocking and async wrappers and their required feature flags.
 | MAVLink FC | `0x1F` | 🟢 |  |
 | Flight Mode | `0x21` | 🟢 |  |
 | ESP_NOW Messages | `0x22` | 🟢 |  |
+| GPS Home | `0x23` | 🟢 | home coordinates and altitude |
 | Logging | `0x34` | 🟢 |  |
 | ArduPilot Reserved Passthrough Frame | `0x80` | 🟢 | single, multi-packet, and status text |
 | mLRS Reserved | `0x81, 0x82` | 🔴 |  |
